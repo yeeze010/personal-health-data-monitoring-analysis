@@ -1,0 +1,15 @@
+{
+  "name": "personal-health-data-monitoring-analysis",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5206 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 6206 --strictPort",
+    "check": "node --check frontend/app.js"
+  },
+  "devDependencies": {
+    "vite": "^7.2.2"
+  }
+}

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+    </marker>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap');
+      text { font-family: 'JetBrains Mono','Noto Sans SC','PingFang SC',sans-serif; }
+      .title { fill:#f8fafc; font-size:18px; font-weight:700; }
+      .sub { fill:#94a3b8; font-size:9px; }
+      .label { fill:#f8fafc; font-size:12px; font-weight:600; text-anchor:middle; }
+      .small { fill:#94a3b8; font-size:9px; text-anchor:middle; }
+      .tiny { fill:#cbd5e1; font-size:8px; }
+      .region { fill:none; stroke:#fbbf24; stroke-width:1; stroke-dasharray:8,4; }
+      .line { fill:none; stroke:#94a3b8; stroke-width:1.4; marker-end:url(#arrow); }
+      .line2 { fill:none; stroke:#22d3ee; stroke-width:1.6; marker-end:url(#arrow-cyan); }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#0f172a"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="30" y="36" class="title">个人健康数据监测分析平台｜核心业务流程图</text>
+  <text x="30" y="56" class="sub">从数据录入到预警处理、报告生成与计划跟进的闭环</text>
+  <rect x="90" y="90" width="210" height="42" rx="21" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="195" y="116" class="label">用户登录并选择档案</text>
+  <rect x="90" y="170" width="210" height="54" rx="6" fill="#0f172a"/><rect x="90" y="170" width="210" height="54" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/><text x="195" y="202" class="label">录入 / 导入健康数据</text>
+  <g transform="translate(195,290)"><polygon points="0,-42 62,0 0,42 -62,0" fill="#0f172a"/><polygon points="0,-42 62,0 0,42 -62,0" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/><text y="-4" class="label">数据有效?</text><text y="14" class="small">范围/单位/时间</text></g>
+  <rect x="440" y="263" width="215" height="54" rx="6" fill="#0f172a"/><rect x="440" y="263" width="215" height="54" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/><text x="547.5" y="296" class="label">提示修正并保留草稿</text>
+  <rect x="90" y="380" width="210" height="54" rx="6" fill="#0f172a"/><rect x="90" y="380" width="210" height="54" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/><text x="195" y="413" class="label">写入健康记录</text>
+  <g transform="translate(195,510)"><polygon points="0,-42 62,0 0,42 -62,0" fill="#0f172a"/><polygon points="0,-42 62,0 0,42 -62,0" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/><text y="-4" class="label">触发风险?</text><text y="14" class="small">阈值/组合规则</text></g>
+  <rect x="440" y="483" width="215" height="54" rx="6" fill="#0f172a"/><rect x="440" y="483" width="215" height="54" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/><text x="547.5" y="505" class="label">生成风险事件</text><text x="547.5" y="523" class="small">提醒用户/医生</text>
+  <rect x="90" y="610" width="210" height="54" rx="6" fill="#0f172a"/><rect x="90" y="610" width="210" height="54" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/><text x="195" y="642" class="label">更新趋势与健康总览</text>
+  <rect x="440" y="610" width="215" height="54" rx="6" fill="#0f172a"/><rect x="440" y="610" width="215" height="54" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/><text x="547.5" y="642" class="label">生成报告和调整计划</text>
+  <rect x="775" y="610" width="185" height="42" rx="21" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/><text x="867.5" y="636" class="label">完成闭环跟进</text>
+  <path class="line2" d="M195,132 L195,170"/><path class="line2" d="M195,224 L195,248"/><path class="line2" d="M195,332 L195,380"/><text x="210" y="360" fill="#34d399" font-size="9">是</text>
+  <path class="line" d="M257,290 L440,290"/><text x="330" y="282" fill="#fb7185" font-size="9">否</text><path class="line" d="M547,263 C547,195 320,195 300,195"/>
+  <path class="line2" d="M195,434 L195,468"/><path class="line2" d="M195,552 L195,610"/><text x="210" y="585" fill="#94a3b8" font-size="9">否</text>
+  <path class="line" d="M257,510 L440,510"/><text x="330" y="502" fill="#fb7185" font-size="9">是</text>
+  <path class="line" d="M547,537 L547,610"/><path class="line2" d="M300,637 L440,637"/><path class="line2" d="M655,637 L775,631"/>
+
+</svg>

@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8206:8206"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8206
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5206:5206"
+    depends_on:
+      - api
+    restart: unless-stopped
