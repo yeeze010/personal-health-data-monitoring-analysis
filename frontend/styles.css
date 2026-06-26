@@ -54,7 +54,7 @@ body::before {
 }
 
 .login-view {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -135,6 +135,7 @@ input,
 textarea,
 a {
   outline-offset: 4px;
+  touch-action: manipulation;
 }
 
 button:focus-visible,
@@ -493,6 +494,12 @@ dd {
   border-radius: 999px;
 }
 
+.status-pill::before {
+  content: "状态";
+  margin-right: 6px;
+  font-size: 11px;
+}
+
 .status-ok {
   color: var(--success);
   background: var(--success-soft);
@@ -568,7 +575,7 @@ button:hover {
 }
 
 button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.65;
 }
 
