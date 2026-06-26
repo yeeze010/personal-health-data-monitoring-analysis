@@ -1,7 +1,17 @@
 const state = {
   metrics: [],
   trendMetric: "blood_pressure_systolic",
+  session: JSON.parse(sessionStorage.getItem("health-session") || "null"),
 };
+
+const deviceEntries = [
+  { provider: "Apple Health", device: "Apple Watch / iPhone", scope: "步数、心率、睡眠、血氧", status: "available" },
+  { provider: "Health Connect", device: "Android 健康数据", scope: "运动、体重、睡眠、心率", status: "available" },
+  { provider: "Samsung Health", device: "Galaxy Watch", scope: "心率、血氧、运动、睡眠", status: "available" },
+  { provider: "手环 / 手表", device: "华为、小米、OPPO 等", scope: "步数、心率、睡眠", status: "available" },
+  { provider: "蓝牙血压计", device: "家庭血压计", scope: "收缩压、舒张压、测量时间", status: "available" },
+  { provider: "蓝牙血糖仪", device: "家用血糖仪", scope: "空腹/餐后血糖、备注", status: "available" },
+];
 
 const el = (id) => document.getElementById(id);
 const localApiBase =
@@ -16,9 +26,7 @@ async function api(path, options = {}) {
     ...options,
   });
   const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || "请求失败");
-  }
+  if (!response.ok) throw new Error(data.message || "请求失败");
   return data;
 }
 
@@ -35,12 +43,8 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }
 
-function levelText(level) {
-  return { high: "高风险", medium: "中风险", low: "低风险" }[level] || level;
-}
-
-function statusText(status) {
-  return {
+const statusText = (status) =>
+  ({
     open: "待处理",
     in_progress: "进行中",
     done: "已完成",
@@ -50,29 +54,25 @@ function statusText(status) {
     passed: "已通过",
     pending: "待授权",
     synced: "已同步",
-    failed: "失败",
-  }[status] || status;
+    failed: "连接失败",
+  })[status] || status;
+
+const levelText = (level) => ({ high: "高风险", medium: "中风险", low: "低风险" })[level] || level;
+const confidenceText = (value) => ({ high: "高可信", medium: "中可信", low: "样本不足" })[value] || value;
+const reportTypeText = (type) => (type === "weekly" ? "周报" : "月报");
+
+function localNowValue() {
+  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-function confidenceText(confidence) {
-  return { high: "高可信", medium: "中可信", low: "待补充" }[confidence] || confidence;
+function showApp(isLoggedIn) {
+  el("loginView").hidden = isLoggedIn;
+  el("appView").hidden = !isLoggedIn;
 }
 
-function reportTypeText(type) {
-  return type === "weekly" ? "周报" : "月报";
-}
-
-function actionText(action) {
-  return {
-    create_activity: "新增运动记录",
-    create_sleep: "新增睡眠记录",
-    create_meal: "新增饮食记录",
-    create_family_member: "新增家庭成员",
-    create_device: "登记设备",
-    handle_risk: "处理异常提醒",
-    create_report: "生成健康报告",
-    create_record: "新增体征记录",
-  }[action] || action;
+function setMessage(id, text) {
+  const node = el(id);
+  if (node) node.textContent = text;
 }
 
 function isMetricRisk(metric) {
@@ -80,23 +80,30 @@ function isMetricRisk(metric) {
   return value < Number(metric.normal_min) || value > Number(metric.normal_max);
 }
 
-function localNowValue() {
-  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+async function withButton(button, busyText, task) {
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = busyText;
+  try {
+    await task();
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
 }
 
 async function loadBlueprint() {
   const data = await api("/api/v1/product/blueprint");
-  el("positioning").textContent = data.positioning;
-  el("coreFlow").innerHTML = data.core_flow
-    .map((item, index) => `<span><b>${index + 1}</b>${escapeHtml(item)}</span>`)
+  el("positioning").textContent =
+    "个人使用 App：先授权健康平台和设备，再记录体征、饮食、睡眠与运动，最后用趋势、提醒、报告和家庭授权完成日常健康管理。";
+  el("coreFlow").innerHTML = ["登录", "连接设备", "授权同步", "记录补充", "查看趋势", "处理提醒"]
+    .map((item, index) => `<span><b>${index + 1}</b>${item}</span>`)
     .join("");
-  el("roleList").innerHTML = data.roles.map((role) => `<span class="tag">${escapeHtml(role)}</span>`).join("");
-  el("moduleList").innerHTML = data.modules.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("");
-  el("permissionTable").innerHTML = data.permission_matrix
-    .map(
-      (row) =>
-        `<tr><td>${escapeHtml(row.role)}</td><td>${escapeHtml(row.profile)}</td><td>${escapeHtml(row.family)}</td><td>${escapeHtml(row.report)}</td><td>${escapeHtml(row.admin)}</td></tr>`
-    )
+  el("roleList").innerHTML = ["个人用户", "家庭协助人", "健康顾问"].map((role) => `<span class="tag">${role}</span>`).join("");
+  el("moduleList").innerHTML = data.modules
+    .filter((item) => !["Git/GitHub", "测试部署验收"].includes(item))
+    .slice(0, 10)
+    .map((item) => `<span class="tag">${escapeHtml(item)}</span>`)
     .join("");
 }
 
@@ -112,7 +119,7 @@ async function loadMetrics() {
 
 async function loadSummary() {
   const data = await api("/api/v1/summary");
-  const profile = data.profile;
+  const { profile, kpis } = data;
   el("profileName").textContent = profile.name;
   el("profileRole").textContent = profile.role;
   el("profileGender").textContent = profile.gender;
@@ -122,31 +129,16 @@ async function loadSummary() {
   el("profileUpdated").textContent = formatDateTime(profile.updated_at);
   el("profileHistory").textContent = profile.medical_history || "暂无";
 
-  const kpi = data.kpis;
-  el("healthScore").textContent = kpi.health_score;
-  el("totalRecords").textContent = kpi.total_records;
-  el("openRisks").textContent = kpi.open_risks;
-  el("familyCount").textContent = kpi.family_count;
-  el("deviceCount").textContent = kpi.device_count;
-  el("weeklySteps").textContent = Number(kpi.weekly_steps).toLocaleString("zh-CN");
-  el("avgSleep").textContent = kpi.avg_sleep;
-  el("mealCalories").textContent = kpi.meal_calories;
-  el("reportCount").textContent = kpi.report_count;
-  el("urgentCount").textContent = kpi.open_risks;
-
-  el("latestMetrics").innerHTML = data.latest_metrics
-    .map((metric) => {
-      const risky = isMetricRisk(metric);
-      return `
-        <article class="metric-card">
-          <span>${escapeHtml(metric.category)} / ${escapeHtml(metric.name)}</span>
-          <strong>${Number(metric.value_numeric).toFixed(1)} ${escapeHtml(metric.unit)}</strong>
-          <span class="status-pill ${risky ? "status-risk" : "status-ok"}">${risky ? "需要关注" : "正常"}</span>
-          <p class="range">参考区间：${metric.normal_min} - ${metric.normal_max} ${escapeHtml(metric.unit)}</p>
-        </article>
-      `;
-    })
-    .join("");
+  el("healthScore").textContent = kpis.health_score;
+  el("totalRecords").textContent = kpis.total_records;
+  el("openRisks").textContent = kpis.open_risks;
+  el("urgentCount").textContent = kpis.open_risks;
+  el("familyCount").textContent = kpis.family_count;
+  el("deviceCount").textContent = kpis.device_count;
+  el("weeklySteps").textContent = Number(kpis.weekly_steps).toLocaleString("zh-CN");
+  el("avgSleep").textContent = kpis.avg_sleep;
+  el("mealCalories").textContent = kpis.meal_calories;
+  el("reportCount").textContent = kpis.report_count;
 }
 
 async function loadTrend() {
@@ -176,11 +168,10 @@ function renderChart(data) {
     .map((point, index) => {
       const cx = x(index);
       const cy = y(Number(point.value));
-      const day = point.day.slice(5);
       return `
         <circle cx="${cx}" cy="${cy}" r="4.5" fill="#606c38"></circle>
         <text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="12" fill="#35402d">${point.value}</text>
-        <text x="${cx}" y="${height - 22}" text-anchor="middle" font-size="11" fill="#606c38">${day}</text>
+        <text x="${cx}" y="${height - 22}" text-anchor="middle" font-size="11" fill="#606c38">${point.day.slice(5)}</text>
       `;
     })
     .join("");
@@ -190,8 +181,8 @@ function renderChart(data) {
       <rect x="${padding.left}" y="${normalMaxY}" width="${width - padding.left - padding.right}" height="${normalMinY - normalMaxY}" fill="#cbd4bd"></rect>
       <line x1="${padding.left}" y1="${normalMaxY}" x2="${width - padding.right}" y2="${normalMaxY}" stroke="#606c38" stroke-dasharray="4 4"></line>
       <line x1="${padding.left}" y1="${normalMinY}" x2="${width - padding.right}" y2="${normalMinY}" stroke="#606c38" stroke-dasharray="4 4"></line>
-      <text x="${padding.left}" y="${normalMaxY - 8}" font-size="12" fill="#606c38">正常上限 ${data.metric.normal_max}${escapeHtml(data.metric.unit)}</text>
-      <text x="${padding.left}" y="${normalMinY + 18}" font-size="12" fill="#606c38">正常下限 ${data.metric.normal_min}${escapeHtml(data.metric.unit)}</text>
+      <text x="${padding.left}" y="${normalMaxY - 8}" font-size="12" fill="#606c38">参考上限 ${data.metric.normal_max}${escapeHtml(data.metric.unit)}</text>
+      <text x="${padding.left}" y="${normalMinY + 18}" font-size="12" fill="#606c38">参考下限 ${data.metric.normal_min}${escapeHtml(data.metric.unit)}</text>
       <path d="${line}" fill="none" stroke="#606c38" stroke-width="3"></path>
       ${labels}
     </svg>
@@ -201,13 +192,12 @@ function renderChart(data) {
 async function loadRisks() {
   const risks = await api("/api/v1/risks");
   if (!risks.length) {
-    el("riskList").innerHTML = `<div class="empty-state">暂无风险事件</div>`;
-    el("riskFocus").textContent = "最近没有待处理异常，当前可进入平稳观察阶段。";
+    el("riskList").innerHTML = `<div class="empty-state">暂无异常提醒</div>`;
+    el("riskFocus").textContent = "最近没有待处理提醒，可以保持观察。";
     return;
   }
-  const openRisks = risks.filter((risk) => risk.status === "open");
-  const priority = openRisks[0] || risks[0];
-  el("riskFocus").textContent = `${priority.title}，建议优先完成复测与饮食/作息回访。`;
+  const priority = risks.find((risk) => risk.status === "open") || risks[0];
+  el("riskFocus").textContent = `${priority.title}，建议复测并记录处理结果。`;
   el("riskList").innerHTML = risks
     .map(
       (risk) => `
@@ -222,8 +212,7 @@ async function loadRisks() {
               ? `<button data-risk-id="${risk.id}" class="handle-risk">标记已处理</button>`
               : `<span class="status-pill status-ok">已处理</span>`
           }
-        </article>
-      `
+        </article>`
     )
     .join("");
 }
@@ -235,16 +224,12 @@ async function loadBaselines() {
         .map(
           (item) => `
             <article class="baseline-card">
-              <div>
-                <h3>${escapeHtml(item.metric_name || item.metric_code)}</h3>
-                <p>${escapeHtml(item.explanation)}</p>
-              </div>
+              <div><h3>${escapeHtml(item.metric_name || item.metric_code)}</h3><p>${escapeHtml(item.explanation)}</p></div>
               <div class="baseline-range">
                 <strong>${Number(item.baseline_min).toFixed(1)} - ${Number(item.baseline_max).toFixed(1)} ${escapeHtml(item.unit || "")}</strong>
                 <span>${confidenceText(item.confidence)} · ${item.sample_count} 条样本</span>
               </div>
-            </article>
-          `
+            </article>`
         )
         .join("")
     : `<div class="empty-state">暂无足够数据生成个人基线</div>`;
@@ -267,26 +252,21 @@ async function loadActionPlans() {
                   ? `<span class="status-pill status-ok">已完成</span>`
                   : `<button class="complete-plan" data-plan-id="${plan.id}">完成计划</button>`
               }
-            </article>
-          `
+            </article>`
         )
         .join("")
     : `<div class="empty-state">当前没有待执行行动计划</div>`;
 }
 
 async function loadFamilyPrivacy() {
-  const [family, privacy] = await Promise.all([
-    api("/api/v1/family/members"),
-    api("/api/v1/privacy/authorizations"),
-  ]);
+  const [family, privacy] = await Promise.all([api("/api/v1/family/members"), api("/api/v1/privacy/authorizations")]);
   el("familyList").innerHTML = family
     .map(
       (item) => `
         <article class="stack-item">
           <div><h3>${escapeHtml(item.member_name)} · ${escapeHtml(item.relation)}</h3><p>${escapeHtml(item.authorization_scope)}</p></div>
           <span class="status-pill ${item.alert_enabled ? "status-ok" : "status-muted"}">${item.alert_enabled ? "接收提醒" : "不提醒"}</span>
-        </article>
-      `
+        </article>`
     )
     .join("");
   el("privacyList").innerHTML = privacy
@@ -295,8 +275,7 @@ async function loadFamilyPrivacy() {
         <article class="stack-item">
           <div><h3>${escapeHtml(item.grantee_name)}</h3><p>${escapeHtml(item.scope)} · 到期 ${escapeHtml(item.expires_at || "长期")}</p></div>
           <span class="status-pill ${item.can_export ? "status-risk" : "status-ok"}">${item.can_export ? "可导出" : "只读"}</span>
-        </article>
-      `
+        </article>`
     )
     .join("");
 }
@@ -307,14 +286,10 @@ async function loadReportsFiles() {
     ? reports
         .map(
           (report) => `
-        <article class="report-item">
-          <div>
-            <h3>${reportTypeText(report.report_type)}：${report.period_start} 至 ${report.period_end}</h3>
-            <p>${escapeHtml(report.summary)}</p>
-          </div>
-          <span class="status-pill status-ok">${formatDateTime(report.created_at)}</span>
-        </article>
-      `
+            <article class="report-item">
+              <div><h3>${reportTypeText(report.report_type)}：${report.period_start} 至 ${report.period_end}</h3><p>${escapeHtml(report.summary)}</p></div>
+              <span class="status-pill status-ok">${formatDateTime(report.created_at)}</span>
+            </article>`
         )
         .join("")
     : `<div class="empty-state">暂无报告</div>`;
@@ -324,71 +299,78 @@ async function loadReportsFiles() {
         <article class="stack-item">
           <div><h3>${escapeHtml(file.file_name)}</h3><p>${escapeHtml(file.biz_type)} · ${escapeHtml(file.mime_type)} · ${file.size_kb} KB</p></div>
           <span class="status-pill ${file.audit_required ? "status-risk" : "status-ok"}">${file.audit_required ? "需审计" : "免审计"}</span>
-        </article>
-      `
-    )
-    .join("");
-}
-
-async function loadAcceptance() {
-  const checks = await api("/api/v1/acceptance/checks");
-  el("acceptanceChecks").innerHTML = checks
-    .map(
-      (check) => `
-        <article class="acceptance-card">
-          <span class="status-pill ${check.status === "passed" ? "status-ok" : "status-warning"}">${statusText(check.status)}</span>
-          <h3>${escapeHtml(check.category)}：${escapeHtml(check.item)}</h3>
-          <p>${escapeHtml(check.evidence || "待补充证据")}</p>
-          <small>负责人：${escapeHtml(check.owner)}</small>
-        </article>
-      `
+        </article>`
     )
     .join("");
 }
 
 async function loadAdminData() {
-  const [devices, rules, logs] = await Promise.all([
-    api("/api/v1/devices"),
-    api("/api/v1/admin/risk-rules"),
-    api("/api/v1/admin/audit-logs"),
-  ]);
-
-  const deviceSummary = devices.map((d) => `${d.device_name}（${statusText(d.sync_status)}）`).join("、");
-  el("deviceSummaryText").textContent = deviceSummary
-    ? `设备接入摘要：${deviceSummary}。`
-    : "当前尚未接入设备，需要先完成授权与同步。";
-
-  el("ruleCount").textContent = rules.filter((rule) => rule.enabled).length;
-  const latestLog = logs[0]
-    ? `${actionText(logs[0].action)}，执行时间 ${formatDateTime(logs[0].created_at)}。`
-    : "暂无审计日志。";
+  const [devices, logs] = await Promise.all([api("/api/v1/devices"), api("/api/v1/admin/audit-logs")]);
+  const summary = devices.map((device) => `${device.provider} / ${device.device_name}：${statusText(device.sync_status)}`).join("；");
+  el("deviceSummaryText").textContent = summary || "还没有连接设备，请先完成授权。";
+  const latestLog = logs[0] ? `${logs[0].action} · ${formatDateTime(logs[0].created_at)}` : "暂无操作记录";
   el("latestAudit").textContent = latestLog;
+}
+
+function renderDeviceEntries() {
+  el("deviceEntryList").innerHTML = deviceEntries
+    .map(
+      (entry, index) => `
+        <article class="device-entry">
+          <div>
+            <span class="status-pill status-muted">${escapeHtml(entry.provider)}</span>
+            <h3>${escapeHtml(entry.device)}</h3>
+            <p>${escapeHtml(entry.scope)}</p>
+          </div>
+          <button type="button" data-device-index="${index}">授权连接</button>
+        </article>`
+    )
+    .join("");
 }
 
 async function refreshAll() {
   await loadSummary();
-  await Promise.all([
-    loadTrend(),
-    loadRisks(),
-    loadBaselines(),
-    loadActionPlans(),
-    loadFamilyPrivacy(),
-    loadReportsFiles(),
-    loadAcceptance(),
-    loadAdminData(),
-  ]);
-}
-
-function setMessage(id, text) {
-  el(id).textContent = text;
+  await Promise.all([loadTrend(), loadRisks(), loadBaselines(), loadActionPlans(), loadFamilyPrivacy(), loadReportsFiles(), loadAdminData()]);
 }
 
 function setupEvents() {
-  el("measuredAt").value = localNowValue();
+  el("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (el("loginCode").value.length < 4) {
+      setMessage("loginMessage", "访问码至少 4 位。");
+      return;
+    }
+    state.session = { userId: el("loginUser").value, signedInAt: new Date().toISOString() };
+    sessionStorage.setItem("health-session", JSON.stringify(state.session));
+    showApp(true);
+    await startApp();
+  });
 
+  el("logoutButton").addEventListener("click", () => {
+    sessionStorage.removeItem("health-session");
+    state.session = null;
+    showApp(false);
+  });
+
+  el("measuredAt").value = localNowValue();
   el("trendMetric").addEventListener("change", async (event) => {
     state.trendMetric = event.target.value;
     await loadTrend();
+  });
+
+  el("deviceEntryList").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-device-index]");
+    if (!button) return;
+    const entry = deviceEntries[Number(button.dataset.deviceIndex)];
+    await withButton(button, "授权中...", async () => {
+      setMessage("deviceMessage", `正在打开 ${entry.provider} 授权流程...`);
+      await api("/api/v1/devices", {
+        method: "POST",
+        body: JSON.stringify({ provider: entry.provider, device_name: entry.device, sync_status: "synced", last_sync_at: new Date().toISOString() }),
+      });
+      setMessage("deviceMessage", `${entry.provider} 已连接，后续可同步 ${entry.scope}。`);
+      await refreshAll();
+    });
   });
 
   el("recordForm").addEventListener("submit", async (event) => {
@@ -405,7 +387,7 @@ function setupEvents() {
     });
     el("metricValue").value = "";
     el("recordNote").value = "";
-    setMessage("recordMessage", "体征记录已保存，趋势和异常已刷新。");
+    setMessage("recordMessage", "体征记录已保存，趋势和提醒已刷新。");
     await refreshAll();
   });
 
@@ -438,7 +420,7 @@ function setupEvents() {
         quality_score: Number(el("sleepScore").value),
       }),
     });
-    setMessage("sleepMessage", "睡眠记录已保存，系统会自动评估低睡眠风险。");
+    setMessage("sleepMessage", "睡眠记录已保存。");
     await refreshAll();
   });
 
@@ -447,11 +429,7 @@ function setupEvents() {
     setMessage("mealMessage", "正在保存...");
     await api("/api/v1/lifestyle/meals", {
       method: "POST",
-      body: JSON.stringify({
-        meal_type: el("mealType").value,
-        foods: el("foods").value,
-        calories_kcal: Number(el("calories").value),
-      }),
+      body: JSON.stringify({ meal_type: el("mealType").value, foods: el("foods").value, calories_kcal: Number(el("calories").value) }),
     });
     setMessage("mealMessage", "饮食记录已保存。");
     await refreshAll();
@@ -469,73 +447,79 @@ function setupEvents() {
         authorization_scope: el("authScope").value,
       }),
     });
-    setMessage("familyMessage", "家庭成员已新增。");
+    setMessage("familyMessage", "家庭协助人已保存。");
     await refreshAll();
   });
 
   el("deviceForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    setMessage("deviceMessage", "正在登记...");
+    setMessage("deviceMessage", "正在保存设备...");
     await api("/api/v1/devices", {
       method: "POST",
-      body: JSON.stringify({
-        provider: el("provider").value,
-        device_name: el("deviceName").value,
-        sync_status: el("syncStatus").value,
-      }),
+      body: JSON.stringify({ provider: el("provider").value, device_name: el("deviceName").value, sync_status: el("syncStatus").value }),
     });
-    setMessage("deviceMessage", "设备已登记，可进入授权与同步流程。");
+    setMessage("deviceMessage", "设备连接已保存。");
     await refreshAll();
   });
 
   el("riskList").addEventListener("click", async (event) => {
     const button = event.target.closest(".handle-risk");
     if (!button) return;
-    button.disabled = true;
-    button.textContent = "处理中...";
-    await api(`/api/v1/risks/${button.dataset.riskId}/handle`, {
-      method: "PATCH",
-      body: JSON.stringify({ handled_note: "用户已确认并安排复测，必要时同步家庭成员。" }),
+    await withButton(button, "处理中...", async () => {
+      await api(`/api/v1/risks/${button.dataset.riskId}/handle`, {
+        method: "PATCH",
+        body: JSON.stringify({ handled_note: "用户已确认并安排复测，必要时同步家庭协助人。" }),
+      });
+      await refreshAll();
     });
-    await refreshAll();
   });
 
-  el("refreshRisks").addEventListener("click", loadRisks);
+  el("refreshRisks").addEventListener("click", async () => {
+    setMessage("deviceMessage", "提醒已刷新。");
+    await loadRisks();
+  });
 
   el("rebuildBaseline").addEventListener("click", async () => {
-    const button = el("rebuildBaseline");
-    button.disabled = true;
-    button.textContent = "计算中...";
-    await api("/api/v1/analytics/baselines/rebuild", { method: "POST" });
-    await loadBaselines();
-    button.disabled = false;
-    button.textContent = "重建基线";
+    await withButton(el("rebuildBaseline"), "计算中...", async () => {
+      await api("/api/v1/analytics/baselines/rebuild", { method: "POST" });
+      await loadBaselines();
+    });
   });
 
   el("actionPlanList").addEventListener("click", async (event) => {
     const button = event.target.closest(".complete-plan");
     if (!button) return;
-    button.disabled = true;
-    button.textContent = "保存中...";
-    await api(`/api/v1/action-plans/${button.dataset.planId}/complete`, { method: "PATCH" });
-    await Promise.all([loadActionPlans(), loadAdminData()]);
+    await withButton(button, "保存中...", async () => {
+      await api(`/api/v1/action-plans/${button.dataset.planId}/complete`, { method: "PATCH" });
+      await Promise.all([loadActionPlans(), loadAdminData()]);
+    });
   });
 
   el("createWeekly").addEventListener("click", async () => {
+    setMessage("reportMessage", "正在生成周报...");
     await api("/api/v1/reports", { method: "POST", body: JSON.stringify({ report_type: "weekly" }) });
+    setMessage("reportMessage", "周报已生成。");
     await refreshAll();
   });
 
   el("createMonthly").addEventListener("click", async () => {
+    setMessage("reportMessage", "正在生成月报...");
     await api("/api/v1/reports", { method: "POST", body: JSON.stringify({ report_type: "monthly" }) });
+    setMessage("reportMessage", "月报已生成。");
     await refreshAll();
   });
 }
 
-async function init() {
+async function startApp() {
+  renderDeviceEntries();
   await Promise.all([loadBlueprint(), loadMetrics()]);
-  setupEvents();
   await refreshAll();
+}
+
+async function init() {
+  setupEvents();
+  showApp(Boolean(state.session));
+  if (state.session) await startApp();
 }
 
 init().catch((error) => {

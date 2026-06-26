@@ -3,310 +3,246 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>个人健康数据监测分析平台</title>
+    <title>个人健康数据监测分析 App</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand-block">
-        <p class="eyebrow">Personal Health Operations Hub</p>
-        <h1>个人健康数据监测分析平台</h1>
-        <p class="topbar-copy">把个人、家庭与设备采集的健康数据，整理成可跟踪、可提醒、可验收的照护闭环。</p>
-      </div>
-      <nav class="jump-nav" aria-label="页面导航">
-        <a href="#overview">概览</a>
-        <a href="#records">数据录入</a>
-        <a href="#trend">趋势与异常</a>
-        <a href="#family">家庭与隐私</a>
-        <a href="#reports">报告与附件</a>
-        <a href="#acceptance">验收中心</a>
-      </nav>
-    </header>
+    <section id="loginView" class="login-view">
+      <form id="loginForm" class="login-card" autocomplete="on">
+        <p class="eyebrow">Personal Health App</p>
+        <h1>个人健康数据监测分析</h1>
+        <p class="body-copy">登录后查看个人体征、运动睡眠、设备同步、家庭授权和健康报告。</p>
+        <label>账号
+          <select id="loginUser">
+            <option value="u-demo">林晓然 · 个人用户</option>
+            <option value="family">周先生 · 家庭协助人</option>
+          </select>
+        </label>
+        <label>访问码
+          <input id="loginCode" type="password" minlength="4" placeholder="输入任意 4 位以上访问码" required />
+        </label>
+        <button type="submit">进入我的健康空间</button>
+        <p id="loginMessage" class="form-message" role="status"></p>
+      </form>
+    </section>
 
-    <main>
-      <section id="overview" class="section hero">
-        <div class="hero-copy panel grain">
-          <p class="eyebrow">产品定位</p>
-          <h2>让家庭照护从“记在脑子里”变成“落在系统里”。</h2>
-          <p id="positioning" class="body-copy">加载中...</p>
-          <div id="coreFlow" class="flow-strip" aria-label="核心业务流程"></div>
+    <div id="appView" hidden>
+      <header class="topbar">
+        <div class="brand-block">
+          <p class="eyebrow">Personal Health App</p>
+          <h1>个人健康数据监测分析</h1>
+          <p class="topbar-copy">连接手环、手表、血压计、血糖仪和健康平台，把个人健康数据整理成可查看、可提醒、可授权的日常管理流程。</p>
         </div>
+        <nav class="jump-nav" aria-label="页面导航">
+          <a href="#overview">首页</a>
+          <a href="#devices">设备连接</a>
+          <a href="#records">手动记录</a>
+          <a href="#trend">趋势提醒</a>
+          <a href="#family">家庭授权</a>
+          <a href="#reports">报告</a>
+        </nav>
+      </header>
 
-        <aside class="hero-side">
-          <article class="panel spotlight-card">
-            <p class="eyebrow">本周照护重点</p>
-            <h3 id="riskFocus">等待健康风险数据...</h3>
-            <p class="body-copy">系统会结合体征、睡眠、饮食与家庭授权，提示优先处理事项。</p>
-            <div class="mini-stats">
-              <div>
-                <span>待处理异常</span>
-                <strong id="urgentCount">--</strong>
+      <main>
+        <section id="overview" class="section hero">
+          <div class="hero-copy panel grain">
+            <p class="eyebrow">今日健康概览</p>
+            <h2>先连接数据源，再看趋势和提醒。</h2>
+            <p id="positioning" class="body-copy">加载中...</p>
+            <div id="coreFlow" class="flow-strip" aria-label="核心使用流程"></div>
+          </div>
+          <aside class="hero-side">
+            <article class="panel spotlight-card">
+              <p class="eyebrow">本周关注</p>
+              <h3 id="riskFocus">等待健康提醒...</h3>
+              <p class="body-copy">异常提醒只在登录后展示；处理记录会进入个人健康时间线。</p>
+              <div class="mini-stats">
+                <div><span>待处理提醒</span><strong id="urgentCount">--</strong></div>
+                <div><span>已连接设备</span><strong id="deviceCount">--</strong></div>
               </div>
-              <div>
-                <span>已启用规则</span>
-                <strong id="ruleCount">--</strong>
-              </div>
+            </article>
+            <article class="panel compact-panel">
+              <p class="eyebrow">当前用户</p>
+              <div id="roleList" class="tag-grid"></div>
+              <div id="moduleList" class="tag-grid compact"></div>
+              <button id="logoutButton" class="secondary-button" type="button">退出登录</button>
+            </article>
+          </aside>
+        </section>
+
+        <section class="section cockpit">
+          <div class="panel profile-panel">
+            <div class="section-title">
+              <p class="eyebrow">个人档案</p>
+              <h2 id="profileName">加载中...</h2>
             </div>
-          </article>
-
-          <article class="panel compact-panel">
-            <p class="eyebrow">角色与模块</p>
-            <div id="roleList" class="tag-grid"></div>
-            <div id="moduleList" class="tag-grid compact"></div>
-          </article>
-        </aside>
-      </section>
-
-      <section class="section cockpit">
-        <div class="panel profile-panel">
-          <div class="section-title">
-            <p class="eyebrow">个人档案</p>
-            <h2 id="profileName">加载中...</h2>
+            <dl class="profile-list">
+              <div><dt>角色</dt><dd id="profileRole">-</dd></div>
+              <div><dt>性别</dt><dd id="profileGender">-</dd></div>
+              <div><dt>生日</dt><dd id="profileBirthday">-</dd></div>
+              <div><dt>身高</dt><dd id="profileHeight">-</dd></div>
+              <div><dt>血型</dt><dd id="profileBloodType">-</dd></div>
+              <div><dt>最近更新</dt><dd id="profileUpdated">-</dd></div>
+              <div class="wide"><dt>关注点</dt><dd id="profileHistory">-</dd></div>
+            </dl>
           </div>
-          <dl class="profile-list">
-            <div><dt>角色</dt><dd id="profileRole">-</dd></div>
-            <div><dt>性别</dt><dd id="profileGender">-</dd></div>
-            <div><dt>生日</dt><dd id="profileBirthday">-</dd></div>
-            <div><dt>身高</dt><dd id="profileHeight">-</dd></div>
-            <div><dt>血型</dt><dd id="profileBloodType">-</dd></div>
-            <div><dt>最近更新</dt><dd id="profileUpdated">-</dd></div>
-            <div class="wide"><dt>既往史与关注点</dt><dd id="profileHistory">-</dd></div>
-          </dl>
-        </div>
-
-        <div class="care-rail">
-          <article class="panel care-note">
-            <p class="eyebrow">照护摘要</p>
-            <h3>当前记录重心</h3>
-            <p class="body-copy">优先补齐餐后血糖、夜间睡眠与家庭协同记录，缩短提醒到处理的闭环时间。</p>
-            <ul class="plain-list">
-              <li id="deviceSummaryText">设备同步摘要待加载</li>
-              <li>报告中心用于周报、月报与复盘归档。</li>
-              <li>验收中心保留功能、交互、安全和工程证据。</li>
-            </ul>
-          </article>
-          <article class="panel care-note">
-            <p class="eyebrow">审计动态</p>
-            <h3>最近一次关键操作</h3>
-            <p id="latestAudit" class="body-copy">等待审计日志...</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-title split-title">
-          <div>
-            <p class="eyebrow">健康驾驶舱</p>
-            <h2>核心经营指标</h2>
+          <div class="care-rail">
+            <article class="panel care-note">
+              <p class="eyebrow">数据源摘要</p>
+              <h3>设备和平台连接</h3>
+              <p id="deviceSummaryText" class="body-copy">等待设备数据...</p>
+            </article>
+            <article class="panel care-note">
+              <p class="eyebrow">最近操作</p>
+              <h3>健康记录动态</h3>
+              <p id="latestAudit" class="body-copy">等待操作记录...</p>
+            </article>
           </div>
-          <p class="section-caption">同一屏里看清健康评分、异常积压、家庭协同和设备接入状态。</p>
-        </div>
-        <div class="kpi-grid" aria-label="健康关键指标">
-          <article class="kpi"><span>健康评分</span><strong id="healthScore">--</strong><small>异常越少，评分越高</small></article>
-          <article class="kpi"><span>体征记录</span><strong id="totalRecords">--</strong><small>已沉淀的可追踪数据</small></article>
-          <article class="kpi"><span>待处理异常</span><strong id="openRisks">--</strong><small>需要提醒、复测或回访</small></article>
-          <article class="kpi"><span>家庭成员</span><strong id="familyCount">--</strong><small>已纳入授权协同</small></article>
-          <article class="kpi"><span>接入设备</span><strong id="deviceCount">--</strong><small>穿戴设备与手工数据源</small></article>
-          <article class="kpi"><span>近 7 日步数</span><strong id="weeklySteps">--</strong><small>衡量活动稳定度</small></article>
-          <article class="kpi"><span>平均睡眠</span><strong id="avgSleep">--</strong><small>小时 / 晚</small></article>
-          <article class="kpi"><span>今日饮食热量</span><strong id="mealCalories">--</strong><small>由饮食记录自动汇总</small></article>
-          <article class="kpi accent-kpi"><span>归档报告</span><strong id="reportCount">--</strong><small>支持周报、月报和验收材料</small></article>
-        </div>
-      </section>
+        </section>
 
-      <section class="section metrics-section">
-        <div class="section-title split-title">
-          <div>
-            <p class="eyebrow">最新体征</p>
-            <h2>实时健康状态</h2>
+        <section class="section">
+          <div class="kpi-grid" aria-label="健康关键指标">
+            <article class="kpi"><span>健康评分</span><strong id="healthScore">--</strong><small>根据异常提醒扣减</small></article>
+            <article class="kpi"><span>体征记录</span><strong id="totalRecords">--</strong><small>血压、血糖、心率等</small></article>
+            <article class="kpi"><span>待处理提醒</span><strong id="openRisks">--</strong><small>需要复测或确认</small></article>
+            <article class="kpi"><span>家庭成员</span><strong id="familyCount">--</strong><small>按授权查看</small></article>
+            <article class="kpi"><span>近 7 日步数</span><strong id="weeklySteps">--</strong><small>来自运动记录或设备</small></article>
+            <article class="kpi"><span>平均睡眠</span><strong id="avgSleep">--</strong><small>小时 / 晚</small></article>
+            <article class="kpi"><span>今日饮食热量</span><strong id="mealCalories">--</strong><small>手动或照片记录</small></article>
+            <article class="kpi accent-kpi"><span>归档报告</span><strong id="reportCount">--</strong><small>周报、月报</small></article>
           </div>
-          <p class="section-caption">每张卡片都显示指标、当前值与参考区间，便于快速发现越界数据。</p>
-        </div>
-        <div id="latestMetrics" class="metric-grid"></div>
-      </section>
+        </section>
 
-      <section id="records" class="section">
-        <div class="section-title split-title">
-          <div>
-            <p class="eyebrow">可操作表单</p>
-            <h2>生活健康数据录入</h2>
+        <section id="devices" class="section">
+          <div class="section-title split-title">
+            <div><p class="eyebrow">设备连接</p><h2>选择数据来源并授权同步</h2></div>
+            <p class="section-caption">支持手环、手表、血压计、血糖仪，以及 Apple Health、Health Connect、Samsung Health 等平台。</p>
           </div>
-          <p class="section-caption">表单统一使用可编辑字段、即时反馈和状态提示，适合桌面与移动端连续录入。</p>
-        </div>
-        <div class="form-grid">
-          <form id="recordForm" class="panel form">
-            <h3>体征数据</h3>
-            <label>指标<select id="metricSelect" name="metric_code" required></select></label>
-            <label>数值<input id="metricValue" type="number" step="0.01" required /></label>
-            <label>测量时间<input id="measuredAt" type="datetime-local" /></label>
-            <label>备注<textarea id="recordNote" rows="3" placeholder="例如：晨起空腹、运动后复测"></textarea></label>
-            <button type="submit">保存体征记录</button>
-            <p id="recordMessage" class="form-message" role="status"></p>
-          </form>
-
-          <form id="activityForm" class="panel form">
-            <h3>运动数据</h3>
-            <label>运动类型<input id="activityType" value="快走" /></label>
-            <label>步数<input id="steps" type="number" value="8200" /></label>
-            <label>距离 km<input id="distanceKm" type="number" step="0.1" value="5.6" /></label>
-            <label>时长 min<input id="durationMin" type="number" value="48" /></label>
-            <button type="submit">保存运动记录</button>
-            <p id="activityMessage" class="form-message" role="status"></p>
-          </form>
-
-          <form id="sleepForm" class="panel form">
-            <h3>睡眠数据</h3>
-            <label>睡眠时长 h<input id="sleepHours" type="number" step="0.1" value="5.5" /></label>
-            <label>深睡 h<input id="deepSleep" type="number" step="0.1" value="1.2" /></label>
-            <label>醒来次数<input id="wakeCount" type="number" value="3" /></label>
-            <label>质量评分<input id="sleepScore" type="number" value="68" /></label>
-            <button type="submit">保存睡眠记录</button>
-            <p id="sleepMessage" class="form-message" role="status"></p>
-          </form>
-
-          <form id="mealForm" class="panel form">
-            <h3>饮食数据</h3>
-            <label>餐次<select id="mealType"><option>早餐</option><option>午餐</option><option>晚餐</option><option>加餐</option></select></label>
-            <label>食物<textarea id="foods" rows="3">燕麦、鸡蛋、无糖豆浆</textarea></label>
-            <label>热量 kcal<input id="calories" type="number" value="430" /></label>
-            <button type="submit">保存饮食记录</button>
-            <p id="mealMessage" class="form-message" role="status"></p>
-          </form>
-
-          <form id="familyForm" class="panel form">
-            <h3>家庭成员</h3>
-            <label>姓名<input id="familyName" value="赵阿姨" /></label>
-            <label>关系<input id="relation" value="照护人" /></label>
-            <label>年龄<input id="familyAge" type="number" value="52" /></label>
-            <label>授权范围<input id="authScope" value="异常提醒、周报摘要" /></label>
-            <button type="submit">新增家庭成员</button>
-            <p id="familyMessage" class="form-message" role="status"></p>
-          </form>
-
-          <form id="deviceForm" class="panel form">
-            <h3>设备接入</h3>
-            <label>平台<input id="provider" value="Apple Health" /></label>
+          <div id="deviceEntryList" class="device-entry-grid"></div>
+          <form id="deviceForm" class="panel form device-connect-form">
+            <h3>登记自定义设备</h3>
+            <label>平台或品牌<input id="provider" value="Apple Health" /></label>
             <label>设备名称<input id="deviceName" value="Apple Watch" /></label>
-            <label>同步状态<select id="syncStatus"><option value="pending">待授权</option><option value="synced">已同步</option><option value="failed">失败</option></select></label>
-            <button type="submit">登记设备</button>
+            <label>授权状态<select id="syncStatus"><option value="pending">待授权</option><option value="synced">已同步</option><option value="failed">连接失败</option></select></label>
+            <button type="submit">保存设备连接</button>
             <p id="deviceMessage" class="form-message" role="status"></p>
           </form>
-        </div>
-      </section>
+        </section>
 
-      <section id="trend" class="section two-col">
-        <div class="panel">
-          <div class="section-title inline-title">
-            <div>
-              <p class="eyebrow">趋势图表</p>
-              <h2>健康指标趋势</h2>
+        <section id="records" class="section">
+          <div class="section-title split-title">
+            <div><p class="eyebrow">手动记录</p><h2>补充健康数据</h2></div>
+            <p class="section-caption">无法自动同步的数据可以手动补录，保存后会刷新趋势和异常提醒。</p>
+          </div>
+          <div class="form-grid">
+            <form id="recordForm" class="panel form">
+              <h3>体征</h3>
+              <label>指标<select id="metricSelect" name="metric_code" required></select></label>
+              <label>数值<input id="metricValue" type="number" step="0.01" required /></label>
+              <label>测量时间<input id="measuredAt" type="datetime-local" /></label>
+              <label>备注<textarea id="recordNote" rows="3" placeholder="例如：晨起静息、餐后两小时"></textarea></label>
+              <button type="submit">保存体征记录</button>
+              <p id="recordMessage" class="form-message" role="status"></p>
+            </form>
+            <form id="activityForm" class="panel form">
+              <h3>运动</h3>
+              <label>类型<input id="activityType" value="快走" /></label>
+              <label>步数<input id="steps" type="number" value="8200" /></label>
+              <label>距离 km<input id="distanceKm" type="number" step="0.1" value="5.6" /></label>
+              <label>时长 min<input id="durationMin" type="number" value="48" /></label>
+              <button type="submit">保存运动记录</button>
+              <p id="activityMessage" class="form-message" role="status"></p>
+            </form>
+            <form id="sleepForm" class="panel form">
+              <h3>睡眠</h3>
+              <label>睡眠时长 h<input id="sleepHours" type="number" step="0.1" value="6.5" /></label>
+              <label>深睡 h<input id="deepSleep" type="number" step="0.1" value="1.4" /></label>
+              <label>醒来次数<input id="wakeCount" type="number" value="1" /></label>
+              <label>质量评分<input id="sleepScore" type="number" value="76" /></label>
+              <button type="submit">保存睡眠记录</button>
+              <p id="sleepMessage" class="form-message" role="status"></p>
+            </form>
+            <form id="mealForm" class="panel form">
+              <h3>饮食</h3>
+              <label>餐次<select id="mealType"><option>早餐</option><option>午餐</option><option>晚餐</option><option>加餐</option></select></label>
+              <label>食物<textarea id="foods" rows="3">燕麦、鸡蛋、无糖豆浆</textarea></label>
+              <label>热量 kcal<input id="calories" type="number" value="430" /></label>
+              <button type="submit">保存饮食记录</button>
+              <p id="mealMessage" class="form-message" role="status"></p>
+            </form>
+          </div>
+        </section>
+
+        <section id="trend" class="section two-col">
+          <div class="panel">
+            <div class="section-title inline-title">
+              <div><p class="eyebrow">趋势</p><h2>健康指标趋势</h2></div>
+              <select id="trendMetric" aria-label="选择趋势指标"></select>
             </div>
-            <select id="trendMetric" aria-label="选择趋势指标"></select>
+            <div id="trendChart" class="chart" aria-label="指标趋势图"></div>
           </div>
-          <div id="trendChart" class="chart" aria-label="指标趋势图"></div>
-        </div>
-        <div class="panel">
-          <div class="section-title inline-title">
-            <div>
-              <p class="eyebrow">状态流转</p>
-              <h2>异常提醒处理</h2>
+          <div class="panel">
+            <div class="section-title inline-title">
+              <div><p class="eyebrow">提醒</p><h2>异常提醒处理</h2></div>
+              <button id="refreshRisks" class="secondary-button">刷新</button>
             </div>
-            <button id="refreshRisks" class="secondary-button">刷新</button>
+            <div id="riskList" class="risk-list"></div>
           </div>
-          <div id="riskList" class="risk-list"></div>
-        </div>
-      </section>
+        </section>
 
-      <section class="section two-col">
-        <div class="panel innovation-panel">
-          <div class="section-title inline-title">
-            <div>
-              <p class="eyebrow">创新功能</p>
-              <h2>个人健康基线</h2>
+        <section class="section two-col">
+          <div class="panel innovation-panel">
+            <div class="section-title inline-title">
+              <div><p class="eyebrow">个人基线</p><h2>我的观察区间</h2></div>
+              <button id="rebuildBaseline" class="secondary-button">重建基线</button>
             </div>
-            <button id="rebuildBaseline" class="secondary-button">重建基线</button>
+            <div id="baselineList" class="baseline-list"></div>
           </div>
-          <p class="body-copy">系统不只使用统一参考区间，还会根据个人历史记录生成专属观察区间，用于发现偏离个人习惯的变化。</p>
-          <div id="baselineList" class="baseline-list"></div>
-        </div>
-        <div class="panel innovation-panel">
-          <div class="section-title">
-            <p class="eyebrow">创新功能</p>
-            <h2>健康行动计划</h2>
-          </div>
-          <p class="body-copy">异常提醒会自动生成可执行行动计划，用户完成后写入风险事件时间线，形成可追踪闭环。</p>
-          <div id="actionPlanList" class="action-plan-list"></div>
-        </div>
-      </section>
-
-      <section id="family" class="section two-col">
-        <div class="panel">
-          <div class="section-title">
-            <p class="eyebrow">家庭成员</p>
-            <h2>成员与告警协同</h2>
-          </div>
-          <div id="familyList" class="stack-list"></div>
-        </div>
-        <div class="panel">
-          <div class="section-title">
-            <p class="eyebrow">隐私授权</p>
-            <h2>授权范围与导出控制</h2>
-          </div>
-          <div id="privacyList" class="stack-list"></div>
-        </div>
-      </section>
-
-      <section id="reports" class="section two-col">
-        <div class="panel">
-          <div class="section-title">
-            <p class="eyebrow">健康报告</p>
-            <h2>周报与月报归档</h2>
-          </div>
-          <p class="body-copy">报告汇总体征、运动、睡眠、饮食与异常处理状态，可直接用作家庭复盘、顾问沟通和验收材料。</p>
-          <div class="button-row">
-            <button id="createWeekly">生成周报</button>
-            <button id="createMonthly" class="secondary-button">生成月报</button>
-          </div>
-          <div id="reportList" class="report-list"></div>
-        </div>
-        <div class="panel">
-          <div class="section-title">
-            <p class="eyebrow">文件附件</p>
-            <h2>体检报告与饮食图片</h2>
-          </div>
-          <div id="fileList" class="stack-list"></div>
-        </div>
-      </section>
-
-      <section id="acceptance" class="section">
-        <div class="section-title split-title">
-          <div>
-            <p class="eyebrow">验收中心</p>
-            <h2>测试、部署与交付闭环</h2>
-          </div>
-          <p class="section-caption">把功能、交互、安全和工程规范整理成能直接对外交付的验收中心，而不是零散文档。</p>
-        </div>
-        <div class="acceptance-layout">
-          <div id="acceptanceChecks" class="acceptance-grid"></div>
-          <div class="panel table-panel">
-            <h3>接口与权限矩阵</h3>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>角色</th><th>档案</th><th>家庭</th><th>报告</th><th>后台</th></tr></thead>
-                <tbody id="permissionTable"></tbody>
-              </table>
+          <div class="panel innovation-panel">
+            <div class="section-title">
+              <p class="eyebrow">行动计划</p>
+              <h2>提醒后的下一步</h2>
             </div>
-            <h3>工程规范</h3>
-            <ul class="plain-list">
-              <li>Git 分支建议：`main`、`develop`、`feature/*`、`release/*`、`hotfix/*`。</li>
-              <li>PR 必须附带需求点、测试证据、截图或接口响应。</li>
-              <li>CI 需执行 Python 单元测试、前端语法检查与冒烟验证。</li>
-              <li>部署默认采用 Docker + Nginx，后续可升级 PostgreSQL、Redis 与对象存储。</li>
-            </ul>
+            <div id="actionPlanList" class="action-plan-list"></div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+
+        <section id="family" class="section two-col">
+          <div class="panel form">
+            <h3>添加家庭协助人</h3>
+            <form id="familyForm" class="nested-form">
+              <label>姓名<input id="familyName" value="周先生" /></label>
+              <label>关系<input id="relation" value="配偶" /></label>
+              <label>年龄<input id="familyAge" type="number" value="34" /></label>
+              <label>授权范围<input id="authScope" value="异常提醒、周报摘要" /></label>
+              <button type="submit">保存授权成员</button>
+              <p id="familyMessage" class="form-message" role="status"></p>
+            </form>
+            <div id="familyList" class="stack-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title"><p class="eyebrow">隐私授权</p><h2>谁能看我的数据</h2></div>
+            <div id="privacyList" class="stack-list"></div>
+          </div>
+        </section>
+
+        <section id="reports" class="section two-col">
+          <div class="panel">
+            <div class="section-title"><p class="eyebrow">健康报告</p><h2>周报与月报</h2></div>
+            <div class="button-row">
+              <button id="createWeekly">生成周报</button>
+              <button id="createMonthly" class="secondary-button">生成月报</button>
+            </div>
+            <p id="reportMessage" class="form-message" role="status"></p>
+            <div id="reportList" class="report-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title"><p class="eyebrow">附件</p><h2>体检报告与饮食照片</h2></div>
+            <div id="fileList" class="stack-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>
