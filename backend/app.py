@@ -1432,7 +1432,7 @@ def main() -> None:
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8206"))
     server = ThreadingHTTPServer((host, port), AppHandler)
-    print(f"{SOFTWARE_NAME} API running at http://{host}:{port}")
+    print(f"Personal health data monitoring API running at http://{host}:{port}")
     server.serve_forever()
 
 
