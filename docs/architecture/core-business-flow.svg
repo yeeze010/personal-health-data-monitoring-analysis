@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 760">
+
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 L0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#94a3b8"/></marker>
+    <style>text{font-family:'JetBrains Mono','Noto Sans SC','Microsoft YaHei',sans-serif}.title{fill:#f8fafc;font-size:18px;font-weight:700}.sub{fill:#94a3b8;font-size:10px}.boxText{fill:#f8fafc;font-size:12px;font-weight:700;text-anchor:middle}.small{fill:#cbd5e1;font-size:9px;text-anchor:middle}.line{fill:none;stroke:#94a3b8;stroke-width:1.5;marker-end:url(#arrow)}</style>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0f172a"/><rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="30" y="38" class="title">???????</text>
+  <text x="30" y="58" class="sub">?? - ?? - ?? - ?? - ?? - ??</text>
+  <rect x="390" y="90" width="200" height="56" rx="28" fill="rgba(59,130,246,.35)" stroke="#60a5fa"/><text x="490" y="124" class="boxText">??/??????</text>
+  <rect x="390" y="190" width="200" height="64" rx="6" fill="rgba(8,51,68,.45)" stroke="#22d3ee"/><text x="490" y="218" class="boxText">???????</text><text x="490" y="238" class="small">??/CSV/??</text>
+  <polygon points="490,290 560,340 490,390 420,340" fill="rgba(120,53,15,.35)" stroke="#fbbf24"/><text x="490" y="344" class="boxText">?????</text>
+  <rect x="150" y="455" width="200" height="64" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="250" y="482" class="boxText">??????</text><text x="250" y="502" class="small">????/??</text>
+  <rect x="630" y="455" width="200" height="64" rx="6" fill="rgba(136,19,55,.45)" stroke="#fb7185"/><text x="730" y="482" class="boxText">??????</text><text x="730" y="502" class="small">??/??/??</text>
+  <rect x="390" y="590" width="200" height="64" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="490" y="618" class="boxText">??????</text><text x="490" y="638" class="small">??/??/??</text>
+  <rect x="390" y="690" width="200" height="50" rx="25" fill="rgba(59,130,246,.35)" stroke="#60a5fa"/><text x="490" y="720" class="boxText">?????</text>
+  <path d="M490 146 L490 190" class="line"/><path d="M490 254 L490 290" class="line"/><path d="M420 340 L250 455" class="line"/><path d="M560 340 L730 455" class="line"/><path d="M250 519 L390 615" class="line"/><path d="M730 519 L590 615" class="line"/><path d="M490 654 L490 690" class="line"/>
+</svg>

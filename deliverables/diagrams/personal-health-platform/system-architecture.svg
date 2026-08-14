@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+    </marker>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap');
+      text { font-family: 'JetBrains Mono','Noto Sans SC','PingFang SC',sans-serif; }
+      .title { fill:#f8fafc; font-size:18px; font-weight:700; }
+      .sub { fill:#94a3b8; font-size:9px; }
+      .label { fill:#f8fafc; font-size:12px; font-weight:600; text-anchor:middle; }
+      .small { fill:#94a3b8; font-size:9px; text-anchor:middle; }
+      .tiny { fill:#cbd5e1; font-size:8px; }
+      .region { fill:none; stroke:#fbbf24; stroke-width:1; stroke-dasharray:8,4; }
+      .line { fill:none; stroke:#94a3b8; stroke-width:1.4; marker-end:url(#arrow); }
+      .line2 { fill:none; stroke:#22d3ee; stroke-width:1.6; marker-end:url(#arrow-cyan); }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#0f172a"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜系统架构图</text>
+  <text x="30" y="56" class="sub">Docker + Nginx + FastAPI + PostgreSQL + Redis + MinIO</text>
+  <rect x="250" y="80" width="820" height="560" rx="12" class="region"/>
+  <text x="265" y="100" fill="#fbbf24" font-size="10" font-weight="600">应用服务区 / Docker Compose</text>
+    <rect x="40" y="135" width="160" height="60" rx="6" fill="#0f172a"/>
+  <rect x="40" y="135" width="160" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="120.0" y="160" class="label">个人用户</text>
+  <text x="120.0" y="178" class="small">Web / Mobile H5</text>
+
+    <rect x="40" y="245" width="160" height="60" rx="6" fill="#0f172a"/>
+  <rect x="40" y="245" width="160" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="120.0" y="270" class="label">医生/健康顾问</text>
+  <text x="120.0" y="288" class="small">报告与风险查看</text>
+
+    <rect x="40" y="355" width="160" height="60" rx="6" fill="#0f172a"/>
+  <rect x="40" y="355" width="160" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="120.0" y="380" class="label">平台管理员</text>
+  <text x="120.0" y="398" class="small">后台管理</text>
+
+    <rect x="285" y="135" width="180" height="70" rx="6" fill="#0f172a"/>
+  <rect x="285" y="135" width="180" height="70" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="375.0" y="160" class="label">Nginx</text>
+  <text x="375.0" y="178" class="small">静态资源 / 反向代理</text>
+
+    <rect x="285" y="270" width="180" height="70" rx="6" fill="#0f172a"/>
+  <rect x="285" y="270" width="180" height="70" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="375.0" y="295" class="label">Vue 3 管理后台</text>
+  <text x="375.0" y="313" class="small">看板 / 表单 / 报表</text>
+
+    <rect x="515" y="120" width="185" height="65" rx="6" fill="#0f172a"/>
+  <rect x="515" y="120" width="185" height="65" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="607.5" y="145" class="label">API Gateway</text>
+  <text x="607.5" y="163" class="small">JWT / 限流 / 路由</text>
+
+    <rect x="515" y="215" width="185" height="65" rx="6" fill="#0f172a"/>
+  <rect x="515" y="215" width="185" height="65" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="607.5" y="240" class="label">业务服务</text>
+  <text x="607.5" y="258" class="small">用户 档案 指标 报告</text>
+
+    <rect x="515" y="310" width="185" height="65" rx="6" fill="#0f172a"/>
+  <rect x="515" y="310" width="185" height="65" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="607.5" y="335" class="label">分析预警服务</text>
+  <text x="607.5" y="353" class="small">趋势计算 / 规则引擎</text>
+
+    <rect x="515" y="405" width="185" height="65" rx="6" fill="#0f172a"/>
+  <rect x="515" y="405" width="185" height="65" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="607.5" y="430" class="label">通知服务</text>
+  <text x="607.5" y="448" class="small">站内提醒 / 邮件预留</text>
+
+    <g transform="translate(770,120)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">PostgreSQL</text>
+    <text x="72.5" y="54" class="small">业务数据 / 审计</text>
+  </g>
+
+    <g transform="translate(770,245)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">Redis</text>
+    <text x="72.5" y="54" class="small">缓存 / 会话 / 队列</text>
+  </g>
+
+    <g transform="translate(770,370)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">MinIO</text>
+    <text x="72.5" y="54" class="small">报告 / 体检附件</text>
+  </g>
+
+    <rect x="955" y="170" width="150" height="60" rx="6" fill="#0f172a"/>
+  <rect x="955" y="170" width="150" height="60" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="1030.0" y="195" class="label">备份与监控</text>
+  <text x="1030.0" y="213" class="small">日志 / 健康检查</text>
+
+  <path class="line2" d="M200,165 L285,165"/>
+  <path class="line2" d="M200,275 L285,305"/>
+  <path class="line2" d="M200,385 L285,305"/>
+  <path class="line2" d="M465,168 L515,150"/>
+  <path class="line2" d="M465,305 L515,248"/>
+  <path class="line" d="M700,150 L770,150"/>
+  <path class="line" d="M700,248 L770,150"/>
+  <path class="line" d="M700,343 L770,275"/>
+  <path class="line" d="M700,438 L770,400"/>
+  <path class="line" d="M915,150 L955,200"/>
+  <path class="line" d="M915,275 L955,200"/>
+  <path class="line" d="M915,400 L955,200"/>
+  <rect x="510" y="535" width="430" height="28" rx="8" fill="rgba(251,146,60,0.3)" stroke="#fb923c"/>
+  <text x="725" y="553" class="label">异步任务通道：报告生成、导入解析、通知重试</text>
+  <path class="line" d="M608,470 L608,535"/>
+  <path class="line" d="M795,535 L795,440"/>
+
+</svg>

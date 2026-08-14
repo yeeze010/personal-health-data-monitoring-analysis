@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Python syntax check
+        run: python -m py_compile backend/app.py tests/test_api.py tests/smoke_e2e.py
+
+      - name: API unit tests
+        run: python tests/test_api.py
+
+      - name: Frontend JavaScript syntax check
+        run: node --check frontend/app.js
+
+      - name: Smoke E2E
+        run: python tests/smoke_e2e.py
+
+      - name: Docs existence check
+        shell: pwsh
+        run: |
+          $required = @(
+            "docs/requirements/project-positioning.md",
+            "docs/requirements/feature-structure.md",
+            "docs/requirements/core-business-flow.md",
+            "docs/requirements/permission-matrix.md",
+            "docs/design/data-model.md",
+            "docs/design/frontend-ux.md",
+            "docs/design/engineering-skeleton.md",
+            "docs/api/api-plan.md",
+            "docs/test/test-plan.md",
+            "docs/deployment/deployment-plan.md",
+            "docs/acceptance/acceptance-criteria.md",
+            "docs/acceptance/milestones.md"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) {
+              throw "Missing required documentation: $file"
+            }
+          }

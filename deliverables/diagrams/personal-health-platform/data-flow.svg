@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 660">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+    </marker>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap');
+      text { font-family: 'JetBrains Mono','Noto Sans SC','PingFang SC',sans-serif; }
+      .title { fill:#f8fafc; font-size:18px; font-weight:700; }
+      .sub { fill:#94a3b8; font-size:9px; }
+      .label { fill:#f8fafc; font-size:12px; font-weight:600; text-anchor:middle; }
+      .small { fill:#94a3b8; font-size:9px; text-anchor:middle; }
+      .tiny { fill:#cbd5e1; font-size:8px; }
+      .region { fill:none; stroke:#fbbf24; stroke-width:1; stroke-dasharray:8,4; }
+      .line { fill:none; stroke:#94a3b8; stroke-width:1.4; marker-end:url(#arrow); }
+      .line2 { fill:none; stroke:#22d3ee; stroke-width:1.6; marker-end:url(#arrow-cyan); }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#0f172a"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜数据流图</text>
+  <text x="30" y="56" class="sub">数据来源、处理链路、存储、分析和对外输出</text>
+    <rect x="50" y="130" width="170" height="58" rx="6" fill="#0f172a"/>
+  <rect x="50" y="130" width="170" height="58" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="135.0" y="155" class="label">手动录入</text>
+  <text x="135.0" y="173" class="small">血压/血糖/体重等</text>
+
+    <rect x="50" y="245" width="170" height="58" rx="6" fill="#0f172a"/>
+  <rect x="50" y="245" width="170" height="58" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="135.0" y="270" class="label">CSV / 体检附件</text>
+  <text x="135.0" y="288" class="small">批量数据与文件</text>
+
+    <rect x="50" y="360" width="170" height="58" rx="6" fill="#0f172a"/>
+  <rect x="50" y="360" width="170" height="58" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="135.0" y="385" class="label">设备接口预留</text>
+  <text x="135.0" y="403" class="small">可穿戴数据源</text>
+
+    <rect x="310" y="180" width="190" height="62" rx="6" fill="#0f172a"/>
+  <rect x="310" y="180" width="190" height="62" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="405.0" y="205" class="label">数据校验层</text>
+  <text x="405.0" y="223" class="small">单位/范围/重复/权限</text>
+
+    <rect x="310" y="330" width="190" height="62" rx="6" fill="#0f172a"/>
+  <rect x="310" y="330" width="190" height="62" rx="6" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1.5"/>
+  <text x="405.0" y="355" class="label">导入解析任务</text>
+  <text x="405.0" y="373" class="small">异步解析与失败记录</text>
+
+    <g transform="translate(610,135)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">PostgreSQL</text>
+    <text x="72.5" y="54" class="small">结构化健康数据</text>
+  </g>
+
+    <g transform="translate(610,285)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">MinIO</text>
+    <text x="72.5" y="54" class="small">报告/附件对象</text>
+  </g>
+
+    <g transform="translate(610,435)">
+    <rect x="0" y="12" width="145" height="56" fill="#0f172a"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="#0f172a"/>
+    <rect x="0" y="12" width="145" height="56" fill="rgba(76,29,149,0.4)"/>
+    <ellipse cx="72.5" cy="12" rx="72.5" ry="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M0,12 L0,68 M145,12 L145,68" stroke="#a78bfa" stroke-width="1.5"/>
+    <ellipse cx="72.5" cy="68" rx="72.5" ry="12" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="72.5" y="38" class="label">Redis</text>
+    <text x="72.5" y="54" class="small">缓存/任务状态</text>
+  </g>
+
+    <rect x="850" y="140" width="190" height="62" rx="6" fill="#0f172a"/>
+  <rect x="850" y="140" width="190" height="62" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="945.0" y="165" class="label">趋势分析</text>
+  <text x="945.0" y="183" class="small">周期统计/异常点</text>
+
+    <rect x="850" y="285" width="190" height="62" rx="6" fill="#0f172a"/>
+  <rect x="850" y="285" width="190" height="62" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="945.0" y="310" class="label">风险评估</text>
+  <text x="945.0" y="328" class="small">阈值与组合规则</text>
+
+    <rect x="850" y="430" width="190" height="62" rx="6" fill="#0f172a"/>
+  <rect x="850" y="430" width="190" height="62" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="945.0" y="455" class="label">报告生成</text>
+  <text x="945.0" y="473" class="small">周报/月报/PDF</text>
+
+    <rect x="1060" y="210" width="145" height="58" rx="6" fill="#0f172a"/>
+  <rect x="1060" y="210" width="145" height="58" rx="6" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="1132.5" y="235" class="label">看板输出</text>
+  <text x="1132.5" y="253" class="small">用户/后台</text>
+
+    <rect x="1060" y="380" width="145" height="58" rx="6" fill="#0f172a"/>
+  <rect x="1060" y="380" width="145" height="58" rx="6" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="1132.5" y="405" class="label">通知输出</text>
+  <text x="1132.5" y="423" class="small">提醒/处理</text>
+
+  <path class="line2" d="M220,159 L310,205"/><path class="line2" d="M220,274 L310,361"/><path class="line" d="M220,389 L310,361"/>
+  <path class="line2" d="M500,211 L610,165"/><path class="line" d="M500,361 L610,315"/><path class="line" d="M500,361 L610,465"/>
+  <path class="line2" d="M755,165 L850,171"/><path class="line2" d="M755,165 L850,316"/><path class="line" d="M755,315 L850,461"/><path class="line" d="M755,465 L850,461"/>
+  <path class="line2" d="M1040,171 L1060,239"/><path class="line" d="M1040,316 L1060,409"/><path class="line2" d="M1040,461 L1060,409"/>
+  <rect x="295" y="555" width="640" height="44" rx="8" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"/>
+  <text x="615" y="579" class="label">隐私与审计：授权范围、访问日志、导出记录、数据脱敏策略贯穿全链路</text>
+
+</svg>

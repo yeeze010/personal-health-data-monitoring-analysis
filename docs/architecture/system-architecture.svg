@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 L0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#94a3b8"/></marker>
+    <style>text{font-family:'JetBrains Mono','Noto Sans SC','Microsoft YaHei',sans-serif}.title{fill:#f8fafc;font-size:18px;font-weight:700}.sub{fill:#94a3b8;font-size:10px}.boxText{fill:#f8fafc;font-size:12px;font-weight:700;text-anchor:middle}.small{fill:#cbd5e1;font-size:9px;text-anchor:middle}.line{fill:none;stroke:#94a3b8;stroke-width:1.5;marker-end:url(#arrow)}</style>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0f172a"/><rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="30" y="38" class="title">???????????????????????</text>
+  <text x="30" y="58" class="sub">Vue 3 + FastAPI + PostgreSQL + Redis + MinIO + Docker + Nginx</text>
+  <rect x="40" y="125" width="170" height="70" rx="6" fill="rgba(30,41,59,.55)" stroke="#94a3b8"/><text x="125" y="154" class="boxText">???</text><text x="125" y="174" class="small">??/??/??</text>
+  <rect x="40" y="260" width="170" height="70" rx="6" fill="rgba(30,41,59,.55)" stroke="#94a3b8"/><text x="125" y="289" class="boxText">????</text><text x="125" y="309" class="small">??/?????</text>
+  <rect x="285" y="180" width="180" height="80" rx="6" fill="rgba(8,51,68,.45)" stroke="#22d3ee"/><text x="375" y="214" class="boxText">Web Frontend</text><text x="375" y="235" class="small">Vue 3 / TS / ECharts</text>
+  <rect x="535" y="110" width="190" height="70" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="630" y="139" class="boxText">Auth & RBAC</text><text x="630" y="159" class="small">JWT / ?? / ??</text>
+  <rect x="535" y="220" width="190" height="70" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="630" y="249" class="boxText">Health API</text><text x="630" y="269" class="small">??/??/??</text>
+  <rect x="535" y="330" width="190" height="70" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="630" y="359" class="boxText">Analytics & Alert</text><text x="630" y="379" class="small">??/??/??</text>
+  <rect x="535" y="440" width="190" height="70" rx="6" fill="rgba(6,78,59,.45)" stroke="#34d399"/><text x="630" y="469" class="boxText">Report Worker</text><text x="630" y="489" class="small">??/??/??</text>
+  <rect x="820" y="120" width="160" height="70" rx="6" fill="rgba(76,29,149,.45)" stroke="#a78bfa"/><text x="900" y="150" class="boxText">PostgreSQL</text><text x="900" y="170" class="small">????/??</text>
+  <rect x="820" y="270" width="160" height="70" rx="6" fill="rgba(76,29,149,.45)" stroke="#a78bfa"/><text x="900" y="300" class="boxText">Redis</text><text x="900" y="320" class="small">??/??</text>
+  <rect x="820" y="420" width="160" height="70" rx="6" fill="rgba(76,29,149,.45)" stroke="#a78bfa"/><text x="900" y="450" class="boxText">MinIO</text><text x="900" y="470" class="small">??/??</text>
+  <rect x="1025" y="260" width="150" height="80" rx="6" fill="rgba(120,53,15,.35)" stroke="#fbbf24"/><text x="1100" y="292" class="boxText">GitHub CI/CD</text><text x="1100" y="314" class="small">??/??/??</text>
+  <path d="M210 160 L285 210" class="line"/><path d="M210 295 L285 230" class="line"/><path d="M465 220 L535 145" class="line"/><path d="M465 220 L535 255" class="line"/><path d="M725 145 L820 155" class="line"/><path d="M725 255 L820 155" class="line"/><path d="M725 365 L820 305" class="line"/><path d="M725 475 L820 455" class="line"/><path d="M980 305 L1025 300" class="line"/>
+</svg>
