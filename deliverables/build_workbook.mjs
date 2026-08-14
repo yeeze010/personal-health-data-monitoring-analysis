@@ -44,7 +44,7 @@ function sheetWithData(name, values, widths = []) {
 
 const overview = [
   ["项目项", "内容"],
-  ["项目名称", "个人健康数据监测分析平台"],
+  ["项目名称", "个人健康生活网络数据监测与分析系统"],
   ["推荐技术栈", "Vue 3 + TypeScript / FastAPI / PostgreSQL / Redis / MinIO / Docker + Nginx"],
   ["建设周期", "12 周，从需求冻结到验收上线"],
   ["核心闭环", "健康数据采集 -> 校验入库 -> 趋势分析 -> 风险预警 -> 报告生成 -> 健康计划跟进"],
@@ -140,6 +140,6 @@ if (errors.ndjson && errors.ndjson.includes("#")) {
 
 await fs.mkdir(outputDir, { recursive: true });
 const output = await SpreadsheetFile.exportXlsx(workbook);
-const outPath = path.join(outputDir, "个人健康数据监测分析平台_开发排期任务分工测试用例.xlsx");
+const outPath = path.join(outputDir, "个人健康生活网络数据监测与分析系统_开发排期任务分工测试用例.xlsx");
 await output.save(outPath);
 console.log(outPath);

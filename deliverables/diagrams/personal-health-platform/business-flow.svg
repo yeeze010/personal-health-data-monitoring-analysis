@@ -24,7 +24,7 @@
   </defs>
   <rect width="100%" height="100%" fill="#0f172a"/>
   <rect width="100%" height="100%" fill="url(#grid)"/>
-  <text x="30" y="36" class="title">个人健康数据监测分析平台｜核心业务流程图</text>
+  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜核心业务流程图</text>
   <text x="30" y="56" class="sub">从数据录入到预警处理、报告生成与计划跟进的闭环</text>
   <rect x="90" y="90" width="210" height="42" rx="21" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
   <text x="195" y="116" class="label">用户登录并选择档案</text>

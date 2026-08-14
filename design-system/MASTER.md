@@ -2,7 +2,7 @@
 
 ## Product
 
-个人健康数据监测分析 App is a personal health management product. The interface must protect all profile, metric, device, family authorization, report, and audit data behind login.
+个人健康生活网络数据监测与分析系统 is a personal health management product. The interface must protect all profile, metric, device, family authorization, report, and audit data behind login.
 
 ## Visual System
 

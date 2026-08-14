@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { FileBlob, SpreadsheetFile } from "@oai/artifact-tool";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const xlsxPath = path.join(dir, "个人健康数据监测分析平台_开发排期任务分工测试用例.xlsx");
+const xlsxPath = path.join(dir, "个人健康生活网络数据监测与分析系统_开发排期任务分工测试用例.xlsx");
 const input = await FileBlob.load(xlsxPath);
 const workbook = await SpreadsheetFile.importXlsx(input);
 

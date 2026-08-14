@@ -24,7 +24,7 @@
   </defs>
   <rect width="100%" height="100%" fill="#0f172a"/>
   <rect width="100%" height="100%" fill="url(#grid)"/>
-  <text x="30" y="36" class="title">个人健康数据监测分析平台｜系统架构图</text>
+  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜系统架构图</text>
   <text x="30" y="56" class="sub">Docker + Nginx + FastAPI + PostgreSQL + Redis + MinIO</text>
   <rect x="250" y="80" width="820" height="560" rx="12" class="region"/>
   <text x="265" y="100" fill="#fbbf24" font-size="10" font-weight="600">应用服务区 / Docker Compose</text>

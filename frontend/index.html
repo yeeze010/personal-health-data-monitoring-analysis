@@ -3,23 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>个人健康数据监测分析 App</title>
+    <title>个人健康生活网络数据监测与分析系统</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <section id="loginView" class="login-view">
-      <form id="loginForm" class="login-card" autocomplete="on">
+      <form id="loginForm" class="login-card" autocomplete="on" novalidate>
         <p class="eyebrow">Personal Health App</p>
-        <h1>个人健康数据监测分析</h1>
+        <h1>个人健康生活网络数据监测与分析系统</h1>
         <p class="body-copy">登录后查看个人体征、运动睡眠、设备同步、家庭授权和健康报告。</p>
-        <label>账号
-          <select id="loginUser">
-            <option value="u-demo">林晓然 · 个人用户</option>
-            <option value="family">周先生 · 家庭协助人</option>
+        <label>角色
+          <select id="loginRole" required>
+            <option value="">请选择角色</option>
+            <option value="个人用户">个人用户</option>
+            <option value="家庭管理员">家庭管理员</option>
+            <option value="被照护成员">被照护成员</option>
+            <option value="健康顾问">健康顾问</option>
+            <option value="平台运营">平台运营</option>
+            <option value="系统管理员">系统管理员</option>
           </select>
         </label>
-        <label>访问码
-          <input id="loginCode" type="password" minlength="4" placeholder="输入任意 4 位以上访问码" required />
+        <label>用户名
+          <input id="loginUsername" type="text" autocomplete="username" required />
+        </label>
+        <label>密码
+          <input id="loginPassword" type="password" minlength="12" autocomplete="current-password" required />
         </label>
         <button type="submit">进入我的健康空间</button>
         <p id="loginMessage" class="form-message" role="status"></p>
@@ -30,7 +38,7 @@
       <header class="topbar">
         <div class="brand-block">
           <p class="eyebrow">Personal Health App</p>
-          <h1>个人健康数据监测分析</h1>
+          <h1>个人健康生活网络数据监测与分析系统</h1>
           <p class="topbar-copy">连接手环、手表、血压计、血糖仪和健康平台，把个人健康数据整理成可查看、可提醒、可授权的日常管理流程。</p>
         </div>
         <nav class="jump-nav" aria-label="页面导航">
@@ -118,6 +126,7 @@
             <div><p class="eyebrow">设备连接</p><h2>选择数据来源并授权同步</h2></div>
             <p class="section-caption">支持手环、手表、血压计、血糖仪，以及 Apple Health、Health Connect、Samsung Health 等平台。</p>
           </div>
+          <p class="workflow-note">当前页面提供本地演示授权入口。点击后会保存平台、设备与同步状态；真实厂商账户授权需要在部署环境配置对应连接器。</p>
           <div id="deviceEntryList" class="device-entry-grid"></div>
           <form id="deviceForm" class="panel form device-connect-form">
             <h3>登记自定义设备</h3>
@@ -170,6 +179,16 @@
               <button type="submit">保存饮食记录</button>
               <p id="mealMessage" class="form-message" role="status"></p>
             </form>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="panel record-history-panel">
+            <div class="section-title inline-title">
+              <div><p class="eyebrow">保存结果</p><h2>最近保存的健康记录</h2></div>
+              <span id="recordCountLabel" class="section-caption">等待保存记录</span>
+            </div>
+            <div id="recordList" class="record-list"></div>
           </div>
         </section>
 

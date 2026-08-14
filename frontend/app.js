@@ -1,7 +1,17 @@
+function storedSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem("health-session") || "null");
+  } catch {
+    sessionStorage.removeItem("health-session");
+    return null;
+  }
+}
+
 const state = {
   metrics: [],
+  devices: [],
   trendMetric: "blood_pressure_systolic",
-  session: JSON.parse(sessionStorage.getItem("health-session") || "null"),
+  session: storedSession(),
 };
 
 const deviceEntries = [
@@ -22,12 +32,23 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || localApiBase;
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(state.session?.accessToken ? { Authorization: `Bearer ${state.session.accessToken}` } : {}),
+      ...(options.headers || {}),
+    },
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({ message: "服务返回了无法识别的内容" }));
+  if (response.status === 401) clearSession();
   if (!response.ok) throw new Error(data.message || "请求失败");
   return data;
+}
+
+function clearSession() {
+  sessionStorage.removeItem("health-session");
+  state.session = null;
+  showApp(false);
 }
 
 function escapeHtml(value) {
@@ -60,6 +81,36 @@ const statusText = (status) =>
 const levelText = (level) => ({ high: "高风险", medium: "中风险", low: "低风险" })[level] || level;
 const confidenceText = (value) => ({ high: "高可信", medium: "中可信", low: "样本不足" })[value] || value;
 const reportTypeText = (type) => (type === "weekly" ? "周报" : "月报");
+const permissionText = (permission) =>
+  ({
+    "*": "全部管理权限",
+    "health:read": "查看健康数据",
+    "health:write": "记录健康数据",
+    "family:manage": "管理家庭授权",
+    "device:manage": "管理设备",
+    "report:read": "查看报告",
+    "report:create": "生成报告",
+    "admin:read": "查看管理审计",
+  })[permission] || permission;
+
+function hasPermission(permission) {
+  const permissions = state.session?.user?.permissions || [];
+  return permissions.includes("*") || permissions.includes(permission);
+}
+
+function applyRoleVisibility() {
+  const devicesSection = el("devices");
+  const recordsSection = el("records");
+  const familySection = el("family");
+  if (devicesSection) devicesSection.hidden = !hasPermission("device:manage");
+  if (recordsSection) recordsSection.hidden = !hasPermission("health:write");
+  if (familySection) familySection.hidden = !hasPermission("family:manage");
+  [el("createWeekly"), el("createMonthly")].forEach((button) => {
+    if (button) button.hidden = !hasPermission("report:create");
+  });
+  const rebuildBaseline = el("rebuildBaseline");
+  if (rebuildBaseline) rebuildBaseline.hidden = !hasPermission("health:write");
+}
 
 function localNowValue() {
   return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -80,12 +131,16 @@ function isMetricRisk(metric) {
   return value < Number(metric.normal_min) || value > Number(metric.normal_max);
 }
 
-async function withButton(button, busyText, task) {
+async function withButton(button, busyText, task, messageTarget = "deviceMessage") {
   const original = button.textContent;
   button.disabled = true;
   button.textContent = busyText;
   try {
     await task();
+  } catch (error) {
+    if (button.closest("#loginForm")) messageTarget = "loginMessage";
+    setMessage(messageTarget, `操作失败：${error.message}`);
+    if (messageTarget !== "loginMessage") setMessage("reportMessage", `操作失败：${error.message}`);
   } finally {
     button.disabled = false;
     button.textContent = original;
@@ -99,7 +154,9 @@ async function loadBlueprint() {
   el("coreFlow").innerHTML = ["登录", "连接设备", "授权同步", "记录补充", "查看趋势", "处理提醒"]
     .map((item, index) => `<span><b>${index + 1}</b>${item}</span>`)
     .join("");
-  el("roleList").innerHTML = ["个人用户", "家庭协助人", "健康顾问"].map((role) => `<span class="tag">${role}</span>`).join("");
+  const identityTags = [state.session?.user?.role, ...(state.session?.user?.permissions || [])].filter(Boolean);
+  el("roleList").innerHTML = identityTags.map((role) => `<span class="tag">${escapeHtml(permissionText(role))}</span>`).join("");
+  applyRoleVisibility();
   el("moduleList").innerHTML = data.modules
     .filter((item) => !["Git/GitHub", "测试部署验收"].includes(item))
     .slice(0, 10)
@@ -139,6 +196,27 @@ async function loadSummary() {
   el("avgSleep").textContent = kpis.avg_sleep;
   el("mealCalories").textContent = kpis.meal_calories;
   el("reportCount").textContent = kpis.report_count;
+}
+
+async function loadRecentRecords() {
+  const records = await api("/api/v1/records?limit=12");
+  const metricMap = new Map(state.metrics.map((metric) => [metric.code, metric]));
+  const visible = records.slice(0, 6);
+  el("recordCountLabel").textContent = `${records.length} 条，最近保存的记录在前`;
+  el("recordList").innerHTML = visible.length
+    ? visible
+        .map((record) => {
+          const metric = metricMap.get(record.metric_code) || {};
+          const risk = isMetricRisk({ value_numeric: record.value_numeric, normal_min: metric.normal_min, normal_max: metric.normal_max });
+          return `
+            <article class="record-row">
+              <div><strong>${escapeHtml(metric.name || record.metric_code)}</strong><span>${escapeHtml(record.source)} · ${formatDateTime(record.measured_at)}</span></div>
+              <div class="record-value ${risk ? "record-risk" : ""}">${record.value_numeric} ${escapeHtml(metric.unit || "")}</div>
+              <small>${escapeHtml(record.note || "未填写备注")}</small>
+            </article>`;
+        })
+        .join("")
+    : `<div class="empty-state">还没有保存记录</div>`;
 }
 
 async function loadTrend() {
@@ -280,6 +358,43 @@ async function loadFamilyPrivacy() {
     .join("");
 }
 
+async function renderFamilyActions() {
+  const [family, privacy] = await Promise.all([api("/api/v1/family/members"), api("/api/v1/privacy/authorizations")]);
+  const appendAction = (selector, items, idKey, className, label) => {
+    const cards = [...document.querySelectorAll(selector)];
+    items.forEach((item, index) => {
+      const card = cards[index];
+      if (!card) return;
+      const status = card.querySelector(".status-pill");
+      if (item.status === "revoked") {
+        status?.classList.remove("status-ok", "status-risk");
+        status?.classList.add("status-muted");
+        if (status) status.textContent = "已撤销";
+        return;
+      }
+      const actions = document.createElement("div");
+      actions.className = "item-actions";
+      actions.innerHTML = `<button type="button" class="secondary-button ${className}" data-id="${escapeHtml(item[idKey])}">${label}</button>`;
+      card.append(actions);
+    });
+  };
+  appendAction("#familyList .stack-item", family, "id", "revoke-family", "撤销授权");
+  appendAction("#privacyList .stack-item", privacy, "id", "revoke-privacy", "撤销访问");
+}
+
+async function renderReportActions() {
+  const reports = await api("/api/v1/reports");
+  const cards = [...document.querySelectorAll("#reportList .report-item")];
+  reports.forEach((report, index) => {
+    const card = cards[index];
+    if (!card) return;
+    const actions = document.createElement("div");
+    actions.className = "item-actions";
+    actions.innerHTML = `<button type="button" class="secondary-button download-report" data-id="${escapeHtml(report.id)}">下载报告</button>`;
+    card.append(actions);
+  });
+}
+
 async function loadReportsFiles() {
   const [reports, files] = await Promise.all([api("/api/v1/reports"), api("/api/v1/files")]);
   el("reportList").innerHTML = reports.length
@@ -305,10 +420,17 @@ async function loadReportsFiles() {
 }
 
 async function loadAdminData() {
-  const [devices, logs] = await Promise.all([api("/api/v1/devices"), api("/api/v1/admin/audit-logs")]);
+  const canReadAudit = (state.session?.user?.permissions || []).some((permission) => permission === "*" || permission === "admin:read");
+  state.devices = await api("/api/v1/devices");
+  const devices = state.devices;
+  renderDeviceEntries();
+  markDeviceStates();
+  const logs = canReadAudit ? await api("/api/v1/admin/audit-logs") : [];
   const summary = devices.map((device) => `${device.provider} / ${device.device_name}：${statusText(device.sync_status)}`).join("；");
   el("deviceSummaryText").textContent = summary || "还没有连接设备，请先完成授权。";
-  const latestLog = logs[0] ? `${logs[0].action} · ${formatDateTime(logs[0].created_at)}` : "暂无操作记录";
+  const latestLog = canReadAudit
+    ? logs[0] ? `${logs[0].action} · ${formatDateTime(logs[0].created_at)}` : "暂无操作记录"
+    : "个人账户的操作会安全记录，仅系统管理员可查看审计明细。";
   el("latestAudit").textContent = latestLog;
 }
 
@@ -328,28 +450,53 @@ function renderDeviceEntries() {
     .join("");
 }
 
+function markDeviceStates() {
+  const cards = [...document.querySelectorAll("#deviceEntryList .device-entry")];
+  cards.forEach((card, index) => {
+    const entry = deviceEntries[index];
+    const record = state.devices.find((device) => device.provider === entry.provider && device.device_name === entry.device);
+    const status = document.createElement("span");
+    status.className = `status-pill ${record?.sync_status === "synced" ? "status-ok" : record?.sync_status === "failed" ? "status-risk" : "status-muted"}`;
+    status.textContent = record ? `本地${statusText(record.sync_status)}` : "未授权";
+    card.querySelector("div")?.prepend(status);
+    const button = card.querySelector("button");
+    if (button) button.textContent = record?.sync_status === "synced" ? "重新记录同步状态" : record?.sync_status === "failed" ? "重试授权" : "授权连接";
+  });
+}
+
 async function refreshAll() {
   await loadSummary();
-  await Promise.all([loadTrend(), loadRisks(), loadBaselines(), loadActionPlans(), loadFamilyPrivacy(), loadReportsFiles(), loadAdminData()]);
+  await Promise.all([loadTrend(), loadRecentRecords(), loadRisks(), loadBaselines(), loadActionPlans(), loadFamilyPrivacy(), loadReportsFiles(), loadAdminData()]);
+  await renderFamilyActions();
+  await renderReportActions();
 }
 
 function setupEvents() {
   el("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (el("loginCode").value.length < 4) {
-      setMessage("loginMessage", "访问码至少 4 位。");
+    const role = el("loginRole").value;
+    const username = el("loginUsername").value.trim();
+    const password = el("loginPassword").value;
+    if (!role || !username || !password) {
+      setMessage("loginMessage", "请选择角色并填写用户名、密码。");
       return;
     }
-    state.session = { userId: el("loginUser").value, signedInAt: new Date().toISOString() };
-    sessionStorage.setItem("health-session", JSON.stringify(state.session));
-    showApp(true);
-    await startApp();
+    const button = event.submitter;
+    await withButton(button, "正在登录...", async () => {
+      const session = await api("/api/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ role, username, password }),
+      });
+      state.session = session;
+      sessionStorage.setItem("health-session", JSON.stringify(session));
+      setMessage("loginMessage", "");
+      showApp(true);
+      await startApp();
+    });
   });
 
   el("logoutButton").addEventListener("click", () => {
-    sessionStorage.removeItem("health-session");
-    state.session = null;
-    showApp(false);
+    clearSession();
   });
 
   el("measuredAt").value = localNowValue();
@@ -451,6 +598,48 @@ function setupEvents() {
     await refreshAll();
   });
 
+  el("familyList").addEventListener("click", async (event) => {
+    const button = event.target.closest(".revoke-family");
+    if (!button) return;
+    await withButton(button, "撤销中...", async () => {
+      await api(`/api/v1/family/members/${button.dataset.id}/revoke`, { method: "PATCH" });
+      setMessage("familyMessage", "家庭授权已撤销，提醒已停止。");
+      await refreshAll();
+    }, "familyMessage");
+  });
+
+  el("privacyList").addEventListener("click", async (event) => {
+    const button = event.target.closest(".revoke-privacy");
+    if (!button) return;
+    await withButton(button, "撤销中...", async () => {
+      await api(`/api/v1/privacy/authorizations/${button.dataset.id}/revoke`, { method: "PATCH" });
+      setMessage("familyMessage", "隐私访问已撤销。");
+      await refreshAll();
+    }, "familyMessage");
+  });
+
+  el("reportList").addEventListener("click", async (event) => {
+    const button = event.target.closest(".download-report");
+    if (!button) return;
+    await withButton(button, "下载中...", async () => {
+      const response = await fetch(`${API_BASE}/api/v1/reports/${button.dataset.id}/download`, {
+        headers: { Authorization: `Bearer ${state.session.accessToken}` },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "报告下载失败");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `health-report-${button.dataset.id}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setMessage("reportMessage", "报告已下载。");
+    }, "reportMessage");
+  });
+
   el("deviceForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage("deviceMessage", "正在保存设备...");
@@ -518,10 +707,21 @@ async function startApp() {
 
 async function init() {
   setupEvents();
-  showApp(Boolean(state.session));
-  if (state.session) await startApp();
+  showApp(false);
+  if (state.session?.accessToken) {
+    try {
+      state.session.user = await api("/api/v1/auth/me");
+      sessionStorage.setItem("health-session", JSON.stringify(state.session));
+      showApp(true);
+      await startApp();
+    } catch (error) {
+      clearSession();
+      setMessage("loginMessage", error.message);
+    }
+  }
 }
 
 init().catch((error) => {
-  document.body.innerHTML = `<main class="section"><div class="empty-state">系统加载失败：${escapeHtml(error.message)}</div></main>`;
+  clearSession();
+  setMessage("loginMessage", `系统加载失败：${error.message}`);
 });

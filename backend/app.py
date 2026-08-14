@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import base64
+import binascii
+import hashlib
+import hmac
 import mimetypes
 import os
 import sqlite3
@@ -15,8 +19,24 @@ from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = ROOT / "frontend"
-DB_PATH = ROOT / "data" / "health.db"
+DB_PATH = Path(os.getenv("HEALTH_DB_PATH", str(ROOT / "data" / "health.db")))
+SOFTWARE_NAME = "个人健康生活网络数据监测与分析系统"
 DEMO_USER_ID = "u-demo"
+TOKEN_TTL_SECONDS = 30 * 60
+
+ROLE_PERMISSIONS = {
+    "个人用户": {"health:read", "health:write", "family:manage", "device:manage", "report:read", "report:create"},
+    "家庭管理员": {"health:read", "family:manage", "report:read"},
+    "被照护成员": {"health:read", "health:write", "report:create"},
+    "健康顾问": {"health:read", "report:read"},
+    "平台运营": {"device:manage", "report:read", "admin:read"},
+    "系统管理员": {"*"},
+}
+
+
+for _permissions in ROLE_PERMISSIONS.values():
+    if "admin:read" in _permissions and "*" not in _permissions:
+        _permissions.add("health:read")
 
 
 METRICS = [
@@ -79,6 +99,68 @@ def now_iso() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
 
 
+def required_secret(name: str, minimum: int) -> str:
+    value = os.getenv(name, "")
+    if len(value) < minimum:
+        raise RuntimeError(f"{name} 必须配置且长度不少于 {minimum} 个字符")
+    return value
+
+
+def hash_password(password: str, salt: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 210_000, dklen=32).hex()
+
+
+def encode_part(value: dict) -> str:
+    raw = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def decode_part(value: str) -> dict:
+    padded = value + "=" * (-len(value) % 4)
+    return json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+
+
+def sign_token(user: sqlite3.Row) -> tuple[str, str]:
+    now = int(datetime.now().timestamp())
+    expires_at = now + TOKEN_TTL_SECONDS
+    header = encode_part({"alg": "HS256", "typ": "JWT"})
+    payload = encode_part({"sub": user["id"], "role": user["role"], "ver": user["token_version"], "iat": now, "exp": expires_at})
+    signature = hmac.new(required_secret("JWT_SECRET", 32).encode("utf-8"), f"{header}.{payload}".encode("ascii"), hashlib.sha256).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+    return f"{header}.{payload}.{encoded_signature}", datetime.fromtimestamp(expires_at).replace(microsecond=0).isoformat()
+
+
+def verify_token(token: str) -> dict | None:
+    try:
+        header, payload, signature = token.split(".")
+        expected = hmac.new(required_secret("JWT_SECRET", 32).encode("utf-8"), f"{header}.{payload}".encode("ascii"), hashlib.sha256).digest()
+        actual = base64.urlsafe_b64decode((signature + "=" * (-len(signature) % 4)).encode("ascii"))
+        canonical_signature = base64.urlsafe_b64encode(actual).rstrip(b"=").decode("ascii")
+        token_header = decode_part(header)
+        claims = decode_part(payload)
+        if (
+            token_header.get("alg") != "HS256"
+            or token_header.get("typ") != "JWT"
+            or not hmac.compare_digest(signature, canonical_signature)
+            or not hmac.compare_digest(actual, expected)
+            or int(claims.get("exp", 0)) <= int(datetime.now().timestamp())
+        ):
+            return None
+        return claims
+    except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError, binascii.Error):
+        return None
+
+
+def public_user(user: sqlite3.Row) -> dict:
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "displayName": user["name"],
+        "role": user["role"],
+        "permissions": sorted(ROLE_PERMISSIONS.get(user["role"], set())),
+    }
+
+
 def dict_rows(cursor: sqlite3.Cursor) -> list[dict]:
     return [dict(row) for row in cursor.fetchall()]
 
@@ -116,7 +198,13 @@ def init_db() -> None:
               email TEXT NOT NULL,
               role TEXT NOT NULL,
               status TEXT NOT NULL,
-              created_at TEXT NOT NULL
+              created_at TEXT NOT NULL,
+              username TEXT,
+              password_hash TEXT,
+              password_salt TEXT,
+              password_algorithm TEXT,
+              token_version INTEGER NOT NULL DEFAULT 1,
+              subject_user_id TEXT
             );
             CREATE TABLE IF NOT EXISTS health_profiles (
               user_id TEXT PRIMARY KEY,
@@ -302,9 +390,17 @@ def init_db() -> None:
             );
             """
         )
+        ensure_column(db, "users", "username", "TEXT")
+        ensure_column(db, "users", "password_hash", "TEXT")
+        ensure_column(db, "users", "password_salt", "TEXT")
+        ensure_column(db, "users", "password_algorithm", "TEXT")
+        ensure_column(db, "users", "token_version", "INTEGER NOT NULL DEFAULT 1")
+        ensure_column(db, "users", "subject_user_id", "TEXT")
         ensure_column(db, "metric_definitions", "category", "TEXT DEFAULT '体征'")
         if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             seed(db)
+        ensure_auth_users(db)
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)")
         ensure_reference_content(db)
         ensure_product_seed(db)
         rebuild_health_baselines(db, DEMO_USER_ID)
@@ -343,9 +439,82 @@ def ensure_reference_content(db: sqlite3.Connection) -> None:
     db.executemany("UPDATE risk_rules SET description=? WHERE id=?", [(text, rule_id) for rule_id, text in rules])
 
 
+def ensure_auth_users(db: sqlite3.Connection) -> None:
+    personal_password = required_secret("BOOTSTRAP_USER_PASSWORD", 12)
+    admin_password = required_secret("BOOTSTRAP_ADMIN_PASSWORD", 12)
+    personal_username = os.getenv("BOOTSTRAP_USER_USERNAME", "personal.user").strip()
+    admin_username = os.getenv("BOOTSTRAP_ADMIN_USERNAME", "system.admin").strip()
+    if not personal_username or not admin_username:
+        raise RuntimeError("启动账号用户名不能为空")
+
+    personal = db.execute("SELECT * FROM users WHERE id=?", (DEMO_USER_ID,)).fetchone()
+    if personal and personal["password_algorithm"] != "pbkdf2-sha256-210000":
+        salt = os.urandom(16).hex()
+        db.execute(
+            """
+            UPDATE users SET username=?, password_hash=?, password_salt=?, password_algorithm=?,
+                             token_version=COALESCE(token_version, 1), subject_user_id=?
+            WHERE id=?
+            """,
+            (personal_username, hash_password(personal_password, salt), salt, "pbkdf2-sha256-210000", DEMO_USER_ID, DEMO_USER_ID),
+        )
+
+    admin = db.execute("SELECT * FROM users WHERE id='u-admin'").fetchone()
+    if not admin:
+        salt = os.urandom(16).hex()
+        db.execute(
+            """
+            INSERT INTO users(id, name, email, role, status, created_at, username, password_hash,
+                              password_salt, password_algorithm, token_version, subject_user_id)
+            VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, 'pbkdf2-sha256-210000', 1, ?)
+            """,
+            ("u-admin", "系统管理员", "admin@localhost", "系统管理员", now_iso(), admin_username, hash_password(admin_password, salt), salt, DEMO_USER_ID),
+        )
+    elif admin["password_algorithm"] != "pbkdf2-sha256-210000":
+        salt = os.urandom(16).hex()
+        db.execute(
+            """
+            UPDATE users SET username=?, password_hash=?, password_salt=?, password_algorithm=?,
+                             token_version=COALESCE(token_version, 1), subject_user_id=?
+            WHERE id='u-admin'
+            """,
+            (admin_username, hash_password(admin_password, salt), salt, "pbkdf2-sha256-210000", DEMO_USER_ID),
+        )
+
+    role_accounts = [
+        ("u-family-admin", "家庭管理员", "family.admin", "BOOTSTRAP_FAMILY_PASSWORD", personal_password),
+        ("u-cared-member", "被照护成员", "cared.member", "BOOTSTRAP_CARED_PASSWORD", personal_password),
+        ("u-health-advisor", "健康顾问", "health.advisor", "BOOTSTRAP_ADVISOR_PASSWORD", personal_password),
+        ("u-platform-operator", "平台运营", "platform.operator", "BOOTSTRAP_OPERATOR_PASSWORD", personal_password),
+    ]
+    for user_id, name, username, password_env, fallback_password in role_accounts:
+        password = os.getenv(password_env, fallback_password)
+        existing = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not existing:
+            salt = os.urandom(16).hex()
+            db.execute(
+                """
+                INSERT INTO users(id, name, email, role, status, created_at, username, password_hash,
+                                  password_salt, password_algorithm, token_version, subject_user_id)
+                VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, 'pbkdf2-sha256-210000', 1, ?)
+                """,
+                (user_id, name, f"{username}@localhost", name, now_iso(), username, hash_password(password, salt), salt, DEMO_USER_ID),
+            )
+        elif existing["password_algorithm"] != "pbkdf2-sha256-210000" or existing["username"] != username:
+            salt = os.urandom(16).hex()
+            db.execute(
+                """
+                UPDATE users SET username=?, password_hash=?, password_salt=?, password_algorithm=?,
+                                 token_version=COALESCE(token_version, 1), subject_user_id=?, role=?, name=?
+                WHERE id=?
+                """,
+                (username, hash_password(password, salt), salt, "pbkdf2-sha256-210000", DEMO_USER_ID, name, name, user_id),
+            )
+
+
 def seed(db: sqlite3.Connection) -> None:
     db.execute(
-        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO users(id, name, email, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         (DEMO_USER_ID, "林晓然", "demo@example.com", "个人用户", "active", now_iso()),
     )
     db.execute(
@@ -454,10 +623,10 @@ def ensure_product_seed(db: sqlite3.Connection) -> None:
         )
 
 
-def audit(db: sqlite3.Connection, action: str, resource_type: str, resource_id: str | None = None) -> None:
+def audit(db: sqlite3.Connection, action: str, resource_type: str, resource_id: str | None = None, actor: str = "system") -> None:
     db.execute(
         "INSERT INTO audit_logs VALUES (?, ?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), "demo-user", action, resource_type, resource_id, now_iso()),
+        (str(uuid.uuid4()), actor, action, resource_type, resource_id, now_iso()),
     )
 
 
@@ -653,14 +822,20 @@ def create_report(db: sqlite3.Connection, user_id: str, report_type: str) -> dic
     return report
 
 
+class RequestError(Exception):
+    def __init__(self, status: HTTPStatus, message: str):
+        super().__init__(message)
+        self.status = status
+
+
 class AppHandler(BaseHTTPRequestHandler):
     server_version = "PersonalHealthMonitor/2.0"
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.write_cors_headers()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
         self.end_headers()
 
     def do_GET(self) -> None:
@@ -685,8 +860,18 @@ class AppHandler(BaseHTTPRequestHandler):
     def route_api(self, method: str, path: str, query: dict[str, list[str]]) -> None:
         try:
             with db_session() as db:
+                public_request = (method == "GET" and path == "/api/v1/health") or (method == "POST" and path == "/api/v1/auth/login")
+                if not public_request:
+                    user = self.authenticate(db)
+                    self.current_user = user
+                    self.subject_user_id = user["subject_user_id"] or user["id"]
+                    self.require_permission(user, self.permission_for(method, path))
                 if method == "GET" and path == "/api/v1/health":
-                    self.json({"status": "ok", "time": now_iso()})
+                    self.json({"status": "ok", "service": f"{SOFTWARE_NAME} API", "time": now_iso()})
+                elif method == "POST" and path == "/api/v1/auth/login":
+                    self.json(self.login(db))
+                elif method == "GET" and path == "/api/v1/auth/me":
+                    self.json(public_user(self.current_user))
                 elif method == "GET" and path == "/api/v1/product/blueprint":
                     self.json(PRODUCT_BLUEPRINT)
                 elif method == "GET" and path == "/api/v1/metrics":
@@ -706,7 +891,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 elif method == "GET" and path == "/api/v1/analytics/baselines":
                     self.json(self.baselines(db))
                 elif method == "POST" and path == "/api/v1/analytics/baselines/rebuild":
-                    self.json(rebuild_health_baselines(db, DEMO_USER_ID), HTTPStatus.CREATED)
+                    self.json(rebuild_health_baselines(db, self.subject_user_id), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/risks":
                     self.json(self.risks(db))
                 elif method == "GET" and path.startswith("/api/v1/risks/") and path.endswith("/timeline"):
@@ -717,35 +902,41 @@ class AppHandler(BaseHTTPRequestHandler):
                     self.json(self.action_plans(db))
                 elif method == "PATCH" and path.startswith("/api/v1/action-plans/") and path.endswith("/complete"):
                     self.json(self.complete_action_plan(db, path))
+                elif method == "GET" and path.startswith("/api/v1/reports/") and path.endswith("/download"):
+                    self.download_report(db, path)
                 elif method == "GET" and path == "/api/v1/reports":
-                    self.json(dict_rows(db.execute("SELECT * FROM health_reports ORDER BY created_at DESC")))
+                    self.json(dict_rows(db.execute("SELECT * FROM health_reports WHERE user_id=? ORDER BY created_at DESC", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/reports":
                     body = self.read_json()
-                    self.json(create_report(db, DEMO_USER_ID, body.get("report_type", "weekly")), HTTPStatus.CREATED)
+                    self.json(create_report(db, self.subject_user_id, body.get("report_type", "weekly")), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/family/members":
-                    self.json(dict_rows(db.execute("SELECT * FROM family_members ORDER BY created_at DESC")))
+                    self.json(dict_rows(db.execute("SELECT * FROM family_members WHERE owner_user_id=? ORDER BY created_at DESC", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/family/members":
                     self.json(self.create_family_member(db), HTTPStatus.CREATED)
+                elif method == "PATCH" and path.startswith("/api/v1/family/members/") and path.endswith("/revoke"):
+                    self.json(self.revoke_family_member(db, path))
                 elif method == "GET" and path == "/api/v1/privacy/authorizations":
-                    self.json(dict_rows(db.execute("SELECT * FROM privacy_authorizations ORDER BY created_at DESC")))
+                    self.json(dict_rows(db.execute("SELECT * FROM privacy_authorizations WHERE grantor_user_id=? ORDER BY created_at DESC", (self.subject_user_id,))))
+                elif method == "PATCH" and path.startswith("/api/v1/privacy/authorizations/") and path.endswith("/revoke"):
+                    self.json(self.revoke_privacy_authorization(db, path))
                 elif method == "GET" and path == "/api/v1/lifestyle/activity":
-                    self.json(dict_rows(db.execute("SELECT * FROM activity_records ORDER BY recorded_at DESC LIMIT 30")))
+                    self.json(dict_rows(db.execute("SELECT * FROM activity_records WHERE user_id=? ORDER BY recorded_at DESC LIMIT 30", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/lifestyle/activity":
                     self.json(self.create_activity(db), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/lifestyle/sleep":
-                    self.json(dict_rows(db.execute("SELECT * FROM sleep_records ORDER BY recorded_at DESC LIMIT 30")))
+                    self.json(dict_rows(db.execute("SELECT * FROM sleep_records WHERE user_id=? ORDER BY recorded_at DESC LIMIT 30", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/lifestyle/sleep":
                     self.json(self.create_sleep(db), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/lifestyle/meals":
-                    self.json(dict_rows(db.execute("SELECT * FROM meal_records ORDER BY recorded_at DESC LIMIT 30")))
+                    self.json(dict_rows(db.execute("SELECT * FROM meal_records WHERE user_id=? ORDER BY recorded_at DESC LIMIT 30", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/lifestyle/meals":
                     self.json(self.create_meal(db), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/devices":
-                    self.json(dict_rows(db.execute("SELECT * FROM device_sources ORDER BY created_at DESC")))
+                    self.json(dict_rows(db.execute("SELECT * FROM device_sources WHERE user_id=? ORDER BY created_at DESC", (self.subject_user_id,))))
                 elif method == "POST" and path == "/api/v1/devices":
                     self.json(self.create_device(db), HTTPStatus.CREATED)
                 elif method == "GET" and path == "/api/v1/files":
-                    self.json(dict_rows(db.execute("SELECT * FROM files ORDER BY created_at DESC")))
+                    self.json(dict_rows(db.execute("SELECT * FROM files WHERE owner_user_id=? ORDER BY created_at DESC", (self.subject_user_id,))))
                 elif method == "GET" and path == "/api/v1/acceptance/checks":
                     self.json(dict_rows(db.execute("SELECT * FROM acceptance_checks ORDER BY id")))
                 elif method == "GET" and path == "/api/v1/admin/users":
@@ -756,10 +947,59 @@ class AppHandler(BaseHTTPRequestHandler):
                     self.json(dict_rows(db.execute("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 50")))
                 else:
                     self.json({"message": "接口不存在"}, HTTPStatus.NOT_FOUND)
+        except RequestError as exc:
+            self.json({"message": str(exc)}, exc.status)
         except ValueError as exc:
             self.json({"message": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             self.json({"message": "服务器处理失败", "detail": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def permission_for(self, method: str, path: str) -> str:
+        if path.startswith("/api/v1/admin/"):
+            return "admin:read"
+        if method == "POST" and path == "/api/v1/family/members":
+            return "family:manage"
+        if method == "PATCH" and (
+            (path.startswith("/api/v1/family/members/") and path.endswith("/revoke"))
+            or (path.startswith("/api/v1/privacy/authorizations/") and path.endswith("/revoke"))
+        ):
+            return "family:manage"
+        if method == "POST" and path == "/api/v1/devices":
+            return "device:manage"
+        if method == "POST" and path == "/api/v1/reports":
+            return "report:create"
+        if method in {"POST", "PUT", "PATCH"}:
+            return "health:write"
+        return "health:read"
+
+    def require_permission(self, user: sqlite3.Row, permission: str) -> None:
+        permissions = ROLE_PERMISSIONS.get(user["role"], set())
+        if "*" not in permissions and permission not in permissions:
+            raise RequestError(HTTPStatus.FORBIDDEN, "当前角色没有执行此操作的权限")
+
+    def authenticate(self, db: sqlite3.Connection) -> sqlite3.Row:
+        header = self.headers.get("Authorization", "")
+        token = header.removeprefix("Bearer ") if header.startswith("Bearer ") else ""
+        claims = verify_token(token) if token else None
+        if not claims:
+            raise RequestError(HTTPStatus.UNAUTHORIZED, "请先登录或重新登录")
+        user = db.execute("SELECT * FROM users WHERE id=? AND status='active'", (claims.get("sub"),)).fetchone()
+        if not user or int(user["token_version"] or 0) != int(claims.get("ver", -1)) or user["role"] != claims.get("role"):
+            raise RequestError(HTTPStatus.UNAUTHORIZED, "登录状态已失效")
+        return user
+
+    def login(self, db: sqlite3.Connection) -> dict:
+        body = self.read_json()
+        username = str(body.get("username", "")).strip()
+        password = str(body.get("password", ""))
+        role = str(body.get("role", "")).strip()
+        user = db.execute("SELECT * FROM users WHERE username=? AND status='active'", (username,)).fetchone()
+        valid = bool(user and user["password_salt"] and hmac.compare_digest(hash_password(password, user["password_salt"]), user["password_hash"] or ""))
+        if not valid or user["role"] != role:
+            raise RequestError(HTTPStatus.UNAUTHORIZED, "角色、用户名或密码不匹配")
+        token, expires_at = sign_token(user)
+        audit(db, "auth_login", "users", user["id"], user["username"])
+        return {"accessToken": token, "expiresAt": expires_at, "user": public_user(user)}
 
     def profile(self, db: sqlite3.Connection) -> dict:
         row = db.execute(
@@ -770,7 +1010,7 @@ class AppHandler(BaseHTTPRequestHandler):
             JOIN health_profiles p ON p.user_id = u.id
             WHERE u.id = ?
             """,
-            (DEMO_USER_ID,),
+            (self.subject_user_id,),
         ).fetchone()
         return dict(row)
 
@@ -783,9 +1023,9 @@ class AppHandler(BaseHTTPRequestHandler):
         assignments = ", ".join([f"{key}=?" for key in values])
         db.execute(
             f"UPDATE health_profiles SET {assignments}, updated_at=? WHERE user_id=?",
-            (*values.values(), now_iso(), DEMO_USER_ID),
+            (*values.values(), now_iso(), self.subject_user_id),
         )
-        audit(db, "update_profile", "health_profiles", DEMO_USER_ID)
+        audit(db, "update_profile", "health_profiles", self.subject_user_id, self.current_user["username"])
         return self.profile(db)
 
     def summary(self, db: sqlite3.Connection) -> dict:
@@ -803,24 +1043,25 @@ class AppHandler(BaseHTTPRequestHandler):
                   )
                 ORDER BY m.category, m.name
                 """,
-                (DEMO_USER_ID, DEMO_USER_ID),
+                (self.subject_user_id, self.subject_user_id),
             )
         )
-        open_risks = db.execute("SELECT COUNT(*) AS c FROM risk_events WHERE status='open'").fetchone()["c"]
-        total_records = db.execute("SELECT COUNT(*) AS c FROM health_records").fetchone()["c"]
-        report_count = db.execute("SELECT COUNT(*) AS c FROM health_reports").fetchone()["c"]
-        family_count = db.execute("SELECT COUNT(*) AS c FROM family_members WHERE status='active'").fetchone()["c"]
-        device_count = db.execute("SELECT COUNT(*) AS c FROM device_sources WHERE enabled=1").fetchone()["c"]
+        open_risks = db.execute("SELECT COUNT(*) AS c FROM risk_events WHERE user_id=? AND status='open'", (self.subject_user_id,)).fetchone()["c"]
+        total_records = db.execute("SELECT COUNT(*) AS c FROM health_records WHERE user_id=?", (self.subject_user_id,)).fetchone()["c"]
+        report_count = db.execute("SELECT COUNT(*) AS c FROM health_reports WHERE user_id=?", (self.subject_user_id,)).fetchone()["c"]
+        family_count = db.execute("SELECT COUNT(*) AS c FROM family_members WHERE owner_user_id=? AND status='active'", (self.subject_user_id,)).fetchone()["c"]
+        device_count = db.execute("SELECT COUNT(*) AS c FROM device_sources WHERE user_id=? AND enabled=1", (self.subject_user_id,)).fetchone()["c"]
         weekly_steps = db.execute(
-            "SELECT COALESCE(SUM(steps), 0) AS c FROM activity_records WHERE recorded_at >= ?",
-            ((datetime.now() - timedelta(days=7)).isoformat(),),
+            "SELECT COALESCE(SUM(steps), 0) AS c FROM activity_records WHERE user_id=? AND recorded_at >= ?",
+            (self.subject_user_id, (datetime.now() - timedelta(days=7)).isoformat()),
         ).fetchone()["c"]
         avg_sleep = db.execute(
-            "SELECT ROUND(AVG(duration_hours), 1) AS c FROM sleep_records WHERE recorded_at >= ?",
-            ((datetime.now() - timedelta(days=7)).isoformat(),),
+            "SELECT ROUND(AVG(duration_hours), 1) AS c FROM sleep_records WHERE user_id=? AND recorded_at >= ?",
+            (self.subject_user_id, (datetime.now() - timedelta(days=7)).isoformat()),
         ).fetchone()["c"]
         meal_calories = db.execute(
-            "SELECT COALESCE(SUM(calories_kcal), 0) AS c FROM meal_records WHERE date(recorded_at)=date('now')",
+            "SELECT COALESCE(SUM(calories_kcal), 0) AS c FROM meal_records WHERE user_id=? AND date(recorded_at)=date('now')",
+            (self.subject_user_id,),
         ).fetchone()["c"]
         return {
             "profile": self.profile(db),
@@ -840,7 +1081,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def records(self, db: sqlite3.Connection, query: dict[str, list[str]]) -> list[dict]:
         metric = query.get("metric", [None])[0]
-        params: list[str] = [DEMO_USER_ID]
+        params: list[str] = [self.subject_user_id]
         where = "r.user_id = ?"
         if metric:
             where += " AND r.metric_code = ?"
@@ -870,7 +1111,7 @@ class AppHandler(BaseHTTPRequestHandler):
             raise ValueError("指标不存在")
         record = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "metric_code": metric_code,
             "value_numeric": float(value),
             "note": body.get("note", ""),
@@ -880,7 +1121,7 @@ class AppHandler(BaseHTTPRequestHandler):
         }
         db.execute("INSERT INTO health_records VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tuple(record.values()))
         evaluate_record(db, record["id"])
-        rebuild_health_baselines(db, DEMO_USER_ID)
+        rebuild_health_baselines(db, self.subject_user_id)
         audit(db, "create_record", "health_records", record["id"])
         return record
 
@@ -890,7 +1131,7 @@ class AppHandler(BaseHTTPRequestHandler):
             raise ValueError("成员姓名和关系必填")
         row = {
             "id": str(uuid.uuid4()),
-            "owner_user_id": DEMO_USER_ID,
+            "owner_user_id": self.subject_user_id,
             "member_name": body["member_name"],
             "relation": body["relation"],
             "age": int(body.get("age") or 0),
@@ -903,11 +1144,60 @@ class AppHandler(BaseHTTPRequestHandler):
         audit(db, "create_family_member", "family_members", row["id"])
         return row
 
+    def revoke_family_member(self, db: sqlite3.Connection, path: str) -> dict:
+        member_id = path.removeprefix("/api/v1/family/members/").removesuffix("/revoke")
+        row = db.execute(
+            "SELECT * FROM family_members WHERE id=? AND owner_user_id=?",
+            (member_id, self.subject_user_id),
+        ).fetchone()
+        if not row:
+            raise RequestError(HTTPStatus.NOT_FOUND, "家庭成员不存在")
+        db.execute(
+            "UPDATE family_members SET status='revoked', alert_enabled=0 WHERE id=?",
+            (member_id,),
+        )
+        db.execute(
+            "UPDATE privacy_authorizations SET status='revoked' WHERE grantor_user_id=? AND grantee_name=?",
+            (self.subject_user_id, row["member_name"]),
+        )
+        audit(db, "revoke_family_member", "family_members", member_id, self.current_user["username"])
+        return dict(db.execute("SELECT * FROM family_members WHERE id=?", (member_id,)).fetchone())
+
+    def revoke_privacy_authorization(self, db: sqlite3.Connection, path: str) -> dict:
+        authorization_id = path.removeprefix("/api/v1/privacy/authorizations/").removesuffix("/revoke")
+        row = db.execute(
+            "SELECT * FROM privacy_authorizations WHERE id=? AND grantor_user_id=?",
+            (authorization_id, self.subject_user_id),
+        ).fetchone()
+        if not row:
+            raise RequestError(HTTPStatus.NOT_FOUND, "隐私授权不存在")
+        db.execute("UPDATE privacy_authorizations SET status='revoked' WHERE id=?", (authorization_id,))
+        audit(db, "revoke_privacy_authorization", "privacy_authorizations", authorization_id, self.current_user["username"])
+        return dict(db.execute("SELECT * FROM privacy_authorizations WHERE id=?", (authorization_id,)).fetchone())
+
+    def download_report(self, db: sqlite3.Connection, path: str) -> None:
+        report_id = path.removeprefix("/api/v1/reports/").removesuffix("/download")
+        report = db.execute(
+            "SELECT * FROM health_reports WHERE id=? AND user_id=?",
+            (report_id, self.subject_user_id),
+        ).fetchone()
+        if not report:
+            raise RequestError(HTTPStatus.NOT_FOUND, "健康报告不存在")
+        payload = json.dumps(dict(report), ensure_ascii=False, indent=2).encode("utf-8")
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Disposition", f'attachment; filename="health-report-{report_id}.json"')
+        self.write_cors_headers()
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+        audit(db, "download_report", "health_reports", report_id, self.current_user["username"])
+
     def create_activity(self, db: sqlite3.Connection) -> dict:
         body = self.read_json()
         row = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "activity_type": body.get("activity_type", "快走"),
             "steps": int(body.get("steps") or 0),
             "distance_km": float(body.get("distance_km") or 0),
@@ -927,7 +1217,7 @@ class AppHandler(BaseHTTPRequestHandler):
             raise ValueError("睡眠时长必须大于 0")
         row = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "duration_hours": duration,
             "deep_sleep_hours": float(body.get("deep_sleep_hours") or 0),
             "wake_count": int(body.get("wake_count") or 0),
@@ -938,7 +1228,7 @@ class AppHandler(BaseHTTPRequestHandler):
         db.execute("INSERT INTO sleep_records VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tuple(row.values()))
         record = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "metric_code": "sleep_hours",
             "value_numeric": duration,
             "note": f"深睡 {row['deep_sleep_hours']} 小时，醒来 {row['wake_count']} 次",
@@ -957,7 +1247,7 @@ class AppHandler(BaseHTTPRequestHandler):
             raise ValueError("饮食内容必填")
         row = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "meal_type": body.get("meal_type", "正餐"),
             "foods": body["foods"],
             "calories_kcal": float(body.get("calories_kcal") or 0),
@@ -977,7 +1267,7 @@ class AppHandler(BaseHTTPRequestHandler):
             raise ValueError("设备来源和设备名称必填")
         row = {
             "id": str(uuid.uuid4()),
-            "user_id": DEMO_USER_ID,
+            "user_id": self.subject_user_id,
             "provider": body["provider"],
             "device_name": body["device_name"],
             "sync_status": body.get("sync_status", "pending"),
@@ -1000,7 +1290,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 GROUP BY date(measured_at)
                 ORDER BY day
                 """,
-                (DEMO_USER_ID, metric),
+                (self.subject_user_id, metric),
             )
         )
         metric_row = db.execute("SELECT * FROM metric_definitions WHERE code = ?", (metric,)).fetchone()
@@ -1016,11 +1306,11 @@ class AppHandler(BaseHTTPRequestHandler):
                 WHERE b.user_id = ?
                 ORDER BY m.category, m.name
                 """,
-                (DEMO_USER_ID,),
+                (self.subject_user_id,),
             )
         )
         if not rows:
-            rows = rebuild_health_baselines(db, DEMO_USER_ID)
+            rows = rebuild_health_baselines(db, self.subject_user_id)
         return rows
 
     def risks(self, db: sqlite3.Connection) -> list[dict]:
@@ -1030,9 +1320,11 @@ class AppHandler(BaseHTTPRequestHandler):
                 SELECT e.*, rr.description
                 FROM risk_events e
                 JOIN risk_rules rr ON rr.id = e.rule_id
+                WHERE e.user_id = ?
                 ORDER BY CASE e.status WHEN 'open' THEN 0 ELSE 1 END, e.created_at DESC
                 LIMIT 50
-                """
+                """,
+                (self.subject_user_id,),
             )
         )
 
@@ -1040,23 +1332,27 @@ class AppHandler(BaseHTTPRequestHandler):
         risk_id = path.removeprefix("/api/v1/risks/").removesuffix("/timeline")
         return dict_rows(
             db.execute(
-                "SELECT * FROM risk_event_timeline WHERE event_id = ? ORDER BY created_at",
-                (risk_id,),
+                """
+                SELECT t.* FROM risk_event_timeline t
+                JOIN risk_events e ON e.id=t.event_id
+                WHERE t.event_id=? AND e.user_id=? ORDER BY t.created_at
+                """,
+                (risk_id, self.subject_user_id),
             )
         )
 
     def handle_risk(self, db: sqlite3.Connection, path: str) -> dict:
         risk_id = path.removeprefix("/api/v1/risks/").removesuffix("/handle")
         body = self.read_json()
-        row = db.execute("SELECT * FROM risk_events WHERE id = ?", (risk_id,)).fetchone()
+        row = db.execute("SELECT * FROM risk_events WHERE id = ? AND user_id=?", (risk_id, self.subject_user_id)).fetchone()
         if not row:
             raise ValueError("风险事件不存在")
         db.execute(
             "UPDATE risk_events SET status='handled', handled_note=?, handled_at=? WHERE id=?",
             (body.get("handled_note", "已处理并安排复测"), now_iso(), risk_id),
         )
-        timeline(db, risk_id, "handled", body.get("handled_note", "已处理并安排复测"), "demo-user")
-        audit(db, "handle_risk", "risk_events", risk_id)
+        timeline(db, risk_id, "handled", body.get("handled_note", "已处理并安排复测"), self.current_user["username"])
+        audit(db, "handle_risk", "risk_events", risk_id, self.current_user["username"])
         return dict(db.execute("SELECT * FROM risk_events WHERE id = ?", (risk_id,)).fetchone())
 
     def action_plans(self, db: sqlite3.Connection) -> list[dict]:
@@ -1069,13 +1365,13 @@ class AppHandler(BaseHTTPRequestHandler):
                 WHERE p.user_id = ?
                 ORDER BY CASE p.status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, p.due_at
                 """,
-                (DEMO_USER_ID,),
+                (self.subject_user_id,),
             )
         )
 
     def complete_action_plan(self, db: sqlite3.Connection, path: str) -> dict:
         plan_id = path.removeprefix("/api/v1/action-plans/").removesuffix("/complete")
-        row = db.execute("SELECT * FROM health_action_plans WHERE id = ?", (plan_id,)).fetchone()
+        row = db.execute("SELECT * FROM health_action_plans WHERE id = ? AND user_id=?", (plan_id, self.subject_user_id)).fetchone()
         if not row:
             raise ValueError("行动计划不存在")
         db.execute(
@@ -1083,8 +1379,8 @@ class AppHandler(BaseHTTPRequestHandler):
             (now_iso(), plan_id),
         )
         if row["risk_event_id"]:
-            timeline(db, row["risk_event_id"], "action_done", f"行动计划已完成：{row['title']}", "demo-user")
-        audit(db, "complete_action_plan", "health_action_plans", plan_id)
+            timeline(db, row["risk_event_id"], "action_done", f"行动计划已完成：{row['title']}", self.current_user["username"])
+        audit(db, "complete_action_plan", "health_action_plans", plan_id, self.current_user["username"])
         return dict(db.execute("SELECT * FROM health_action_plans WHERE id = ?", (plan_id,)).fetchone())
 
     def read_json(self) -> dict:
@@ -1098,10 +1394,17 @@ class AppHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.write_cors_headers()
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def write_cors_headers(self) -> None:
+        origin = self.headers.get("Origin", "")
+        allowed = {item.strip() for item in os.getenv("ALLOWED_ORIGINS", "http://127.0.0.1:5206,http://localhost:5206").split(",") if item.strip()}
+        if origin in allowed:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
 
     def serve_static(self, path: str) -> None:
         target = FRONTEND_DIR / (path.strip("/") or "index.html")
@@ -1129,7 +1432,7 @@ def main() -> None:
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8206"))
     server = ThreadingHTTPServer((host, port), AppHandler)
-    print(f"个人健康生活网络数据监测与分析系统 running at http://{host}:{port}")
+    print(f"{SOFTWARE_NAME} API running at http://{host}:{port}")
     server.serve_forever()
 
 

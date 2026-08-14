@@ -14,7 +14,7 @@ DIAGRAM_DIR.mkdir(parents=True, exist_ok=True)
 
 
 project = {
-    "name": "个人健康数据监测分析平台",
+    "name": "个人健康生活网络数据监测与分析系统",
     "stack": "Vue 3 + TypeScript、FastAPI、PostgreSQL、Redis、MinIO、Docker + Nginx",
     "summary": "面向个人、家庭健康管理员、医生/健康顾问和平台运营人员的健康数据采集、监测、分析、预警与报告系统。",
 }
@@ -156,7 +156,7 @@ def cylinder(x, y, title, sub):
   </g>\n'''
 
 
-architecture = f'''  <text x="30" y="36" class="title">个人健康数据监测分析平台｜系统架构图</text>
+architecture = f'''  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜系统架构图</text>
   <text x="30" y="56" class="sub">Docker + Nginx + FastAPI + PostgreSQL + Redis + MinIO</text>
   <rect x="250" y="80" width="820" height="560" rx="12" class="region"/>
   <text x="265" y="100" fill="#fbbf24" font-size="10" font-weight="600">应用服务区 / Docker Compose</text>
@@ -191,7 +191,7 @@ architecture = f'''  <text x="30" y="36" class="title">个人健康数据监测�
   <path class="line" d="M795,535 L795,440"/>
 '''
 
-flowchart = '''  <text x="30" y="36" class="title">个人健康数据监测分析平台｜核心业务流程图</text>
+flowchart = '''  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜核心业务流程图</text>
   <text x="30" y="56" class="sub">从数据录入到预警处理、报告生成与计划跟进的闭环</text>
   <rect x="90" y="90" width="210" height="42" rx="21" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
   <text x="195" y="116" class="label">用户登录并选择档案</text>
@@ -211,7 +211,7 @@ flowchart = '''  <text x="30" y="36" class="title">个人健康数据监测分�
   <path class="line" d="M547,537 L547,610"/><path class="line2" d="M300,637 L440,637"/><path class="line2" d="M655,637 L775,631"/>
 '''
 
-dataflow = f'''  <text x="30" y="36" class="title">个人健康数据监测分析平台｜数据流图</text>
+dataflow = f'''  <text x="30" y="36" class="title">个人健康生活网络数据监测与分析系统｜数据流图</text>
   <text x="30" y="56" class="sub">数据来源、处理链路、存储、分析和对外输出</text>
   {box(50,130,170,58,"手动录入","血压/血糖/体重等","rgba(30,41,59,0.5)","#94a3b8")}
   {box(50,245,170,58,"CSV / 体检附件","批量数据与文件","rgba(30,41,59,0.5)","#94a3b8")}
@@ -449,6 +449,6 @@ add_heading(doc, "附录：图示文件", 1)
 for name in ["system-architecture.svg", "business-flow.svg", "data-flow.svg"]:
     add_para(doc, f"{name} 已输出至 deliverables/diagrams/personal-health-platform。")
 
-doc_path = BASE / "个人健康数据监测分析平台_项目交付文档.docx"
+doc_path = BASE / "个人健康生活网络数据监测与分析系统_项目交付文档.docx"
 doc.save(doc_path)
 print(doc_path)

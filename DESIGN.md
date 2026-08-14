@@ -2,7 +2,7 @@
 
 ## Product Name
 
-个人健康数据监测分析 App
+个人健康生活网络数据监测与分析系统
 
 ## Product Direction
 

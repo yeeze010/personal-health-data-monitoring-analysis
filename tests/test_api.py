@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import os
 from pathlib import Path
 
 import sys
@@ -14,10 +15,23 @@ import backend.app as app
 
 class ApiDataTest(unittest.TestCase):
     def setUp(self) -> None:
+        os.environ["BOOTSTRAP_USER_PASSWORD"] = "Test_User_Password_2026!"
+        os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = "Test_Admin_Password_2026!"
+        os.environ["JWT_SECRET"] = "test-jwt-secret-with-at-least-32-characters"
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_db_path = app.DB_PATH
         app.DB_PATH = Path(self.temp_dir.name) / "health.db"
         app.init_db()
+
+    def test_credentials_are_hashed_and_jwt_is_signed(self) -> None:
+        with app.db_session() as db:
+            user = db.execute("SELECT * FROM users WHERE username='personal.user'").fetchone()
+            token, expires_at = app.sign_token(user)
+        self.assertNotEqual(user["password_hash"], os.environ["BOOTSTRAP_USER_PASSWORD"])
+        self.assertEqual(user["password_algorithm"], "pbkdf2-sha256-210000")
+        self.assertEqual(app.verify_token(token)["sub"], app.DEMO_USER_ID)
+        self.assertIsNone(app.verify_token(f"{token[:-1]}x"))
+        self.assertTrue(expires_at)
 
     def tearDown(self) -> None:
         app.DB_PATH = self.original_db_path
